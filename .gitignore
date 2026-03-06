@@ -89,6 +89,7 @@ tasks.json
 !README.md
 !DEVELOPMENT_NOTES.md
 !setup.md
+!docs/wiki/*.md
 
 # ============================================================
 # OS FILES
