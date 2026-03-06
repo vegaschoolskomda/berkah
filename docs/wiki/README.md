@@ -1,243 +1,304 @@
-# 📖 Panduan & Wiki — Aplikasi POS VOLIKO
+# 📖 Wiki — PosPro: Aplikasi Kasir & Manajemen Bisnis Berbasis Web
 
-> Panduan lengkap untuk kasir, admin, dan pemilik toko dalam menggunakan aplikasi Point of Sale (POS) berbasis web.
+> Selamat datang di dokumentasi lengkap **PosPro** — panduan ini ditujukan untuk siapa saja yang ingin memahami, menggunakan, atau mengembangkan aplikasi ini, mulai dari kasir toko hingga pemilik bisnis.
+
+---
+
+## Apa itu PosPro?
+
+**PosPro** adalah aplikasi kasir berbasis web yang dirancang untuk bisnis modern — percetakan digital, toko kelontong, kafe, konveksi, atau usaha jasa lainnya. Tidak perlu install aplikasi tambahan, cukup buka browser dan langsung bisa digunakan.
+
+Yang membedakan PosPro dari kasir biasa adalah **ekosistemnya yang lengkap**: bukan hanya mencatat penjualan, tapi juga mengelola stok, membuat penawaran harga profesional ke klien perusahaan, melacak arus kas, memetakan posisi kompetitor, dan mengirim laporan otomatis ke grup WhatsApp pemilik toko.
+
+---
+
+## Daftar Isi Wiki
+
+| # | Halaman | Ringkasan |
+|---|---|---|
+| 1 | [Login & Dashboard](#-1-login-ke-aplikasi) | Cara masuk dan membaca ringkasan bisnis harian |
+| 2 | [Kasir / POS](#-3-kasir--point-of-sale-pos) | Cara melayani pelanggan dan mencatat transaksi |
+| 3 | [Manajemen Produk & Stok](#-4-manajemen-produk--stok) | Cara kelola produk, varian, foto, dan stok |
+| 4 | [DP / Piutang](#-5-daftar-dp--piutang) | Melacak pelanggan yang belum lunas |
+| 5 | [Laporan Penjualan](#-6-laporan-penjualan) | Riwayat semua transaksi dengan filter tanggal |
+| 6 | [Laporan Tutup Shift](#-7-laporan-tutup-shift-) | Rekonsiliasi kas dan rekening bank akhir shift |
+| 7 | [Data Pelanggan](#-8-data-pelanggan) | Database & riwayat belanja pelanggan |
+| 8 | [WhatsApp Bot](#-9-pengaturan-whatsapp-bot) | Setup bot laporan otomatis ke grup WA owner |
+| 9 | [💰 Cashflow Bisnis](cashflow.md) | Arus kas pemasukan & pengeluaran, chart, export |
+| 10 | [📄 Invoice & Penawaran Harga](invoice-sph.md) | Buat invoice & SPH profesional untuk klien B2B |
+| 11 | [🗺️ Peta Cuan Lokasi](peta-cuan.md) | Peta cabang, kompetitor, dan pencarian bisnis |
 
 ---
 
 ## 🔐 1. Login ke Aplikasi
 
-![Halaman Login](images/login.png)
+Buka browser dan akses alamat aplikasi (contoh: `http://localhost:3000`).
 
-Buka browser dan masuk ke alamat aplikasi (contoh: `http://localhost:3000`).
+- **Email**: masukkan email akun Anda (contoh: `admin@toko.com`)
+- **Password**: masukkan kata sandi
 
-- **Email:** masukkan email akun kamu (contoh: `admin@voliko.com`)
-- **Password:** masukkan kata sandi akun kamu
+Klik **Sign In**. Jika berhasil, Anda akan masuk ke halaman Dashboard.
 
-Klik **Sign In** untuk masuk. Jika berhasil, kamu akan diarahkan ke halaman utama POS.
+> **Lupa password?** Hubungi administrator toko untuk mereset akun Anda.
 
 ---
 
 ## 🏠 2. Halaman Utama / Dashboard
 
-![Dashboard](images/dashboard.png)
+Setelah login, Anda akan melihat **Dashboard** — halaman ringkasan kondisi bisnis hari ini secara sekilas.
 
-Setelah login, kamu akan melihat **Dashboard** — halaman ringkasan status toko hari ini:
-
-| Informasi | Penjelasan |
+| Kartu Informasi | Penjelasan |
 |---|---|
-| Total Penjualan Hari Ini | Berapa uang yang sudah masuk hari ini dari semua transaksi |
-| Jumlah Transaksi | Berapa kali terjadi penjualan |
-| Produk Terjual | Total item yang sudah terjual |
-| Saldo per Rekening | Saldo terkini di setiap rekening bank |
+| **Total Penjualan Hari Ini** | Jumlah uang yang masuk dari semua transaksi hari ini |
+| **Jumlah Transaksi** | Berapa kali terjadi transaksi penjualan |
+| **Produk Terjual** | Total item yang sudah laku |
+| **Saldo per Rekening** | Saldo terkini di setiap rekening bank yang terdaftar |
+
+Di Dashboard juga terdapat **grafik penjualan** yang menampilkan tren harian atau mingguan, sehingga pemilik toko bisa langsung melihat perkembangan bisnis tanpa perlu membuka laporan detail.
 
 ---
 
-## 🛒 3. Kasir / POS (Point of Sale)
+## 🛒 3. Kasir / Point of Sale (POS)
 
-![Halaman Kasir](images/pos.png)
+Halaman kasir adalah inti dari aplikasi — tempat mencatat setiap transaksi penjualan secara real-time.
 
-Ini adalah halaman utama kasir untuk **melayani pelanggan dan mencatat transaksi penjualan**.
+### Cara Bertransaksi
 
-### Cara Menggunakannya:
-1. **Cari produk** — ketik nama produk di kotak pencarian atau scan barcode
-2. **Klik produk** untuk menambahkannya ke keranjang
-3. **Atur jumlah** — klik + atau – untuk mengubah jumlah
-4. **Pilih metode bayar** — Cash, QRIS, atau Transfer Bank
-5. **Klik Bayar** — input nominal yang diterima, sistem otomatis hitung kembalian
-6. **Struk** akan muncul dan bisa dicetak atau dibagikan ke pelanggan
+**Langkah 1 — Cari dan Tambah Produk**
+- Ketik nama produk di kotak pencarian, atau
+- Gunakan **scanner barcode** (kamera HP atau scanner fisik) — klik ikon kamera di sebelah kotak pencarian
+- Klik produk untuk menambahkannya ke keranjang
 
-> 💡 **Tip:** Kalau pelanggan mau bayar cicilan/DP, pilih opsi **"DP / Piutang"** saat pembayaran.
+**Langkah 2 — Atur Keranjang**
+- Klik tombol **+** / **−** untuk mengubah jumlah
+- Untuk produk **Digital Printing** (banner, sticker, MMT): masukkan ukuran lebar dan tinggi dalam meter — harga otomatis dihitung per m²
+- Klik ikon tempat sampah untuk menghapus item dari keranjang
+
+**Langkah 3 — Pilih Metode Pembayaran**
+- **Tunai (Cash)**: masukkan nominal yang diterima, sistem otomatis hitung kembalian
+- **Transfer Bank**: pilih rekening tujuan transfer yang diinginkan pelanggan
+- **QRIS**: tampilkan QR code ke pelanggan untuk dipindai
+
+**Langkah 4 — Selesaikan Transaksi**
+- Klik **Bayar Lunas** untuk pembayaran penuh
+- Klik **Bayar DP** jika pelanggan hanya membayar sebagian (uang muka) — transaksi akan masuk ke daftar Piutang
+
+**Langkah 5 — Struk**
+- Setelah transaksi selesai, struk muncul otomatis
+- Klik **Cetak** untuk mencetak ke printer thermal
+- Klik **Kirim WA** untuk mengirim ringkasan tagihan ke WhatsApp pelanggan
+
+> **Tips**: Untuk toko percetakan digital, produk dengan mode **Area Based** akan otomatis memunculkan input Lebar × Tinggi saat ditambahkan ke keranjang.
 
 ---
 
 ## 📦 4. Manajemen Produk & Stok
 
-![Halaman Produk](images/inventory.png)
+Halaman untuk mengelola semua produk, varian, bahan baku, dan stok yang dijual di toko.
 
-Halaman untuk **mengelola semua produk** yang dijual di toko.
+### Yang Bisa Dilakukan
 
-**Yang bisa dilakukan:**
-- ➕ Tambah produk baru beserta foto, harga, dan stok
-- ✏️ Edit produk yang sudah ada
-- 📊 Lihat stok yang tersisa
-- 🗑️ Hapus produk yang sudah tidak dijual
+**Menambah Produk Baru**
+1. Klik **+ Tambah Produk**
+2. Isi nama, kategori, satuan, dan harga jual
+3. Pilih **Mode Harga**:
+   - **Normal (per unit)**: untuk produk yang dijual per pcs, lusin, kg, dll
+   - **Area Based (per m²)**: untuk banner, sticker, MMT, kain — harga dihitung dari lebar × tinggi
+4. Upload foto produk (opsional tapi direkomendasikan)
+5. Tambahkan **Varian** jika produk memiliki pilihan ukuran/warna/jenis
+6. Tambahkan **Bahan Baku** jika ingin stok bahan baku otomatis terpotong saat produk terjual
+7. Klik **Simpan**
+
+**Mengelola Stok**
+- Stok terpotong **otomatis** setiap kali ada transaksi di kasir
+- Untuk penambahan stok (restock), buka produk → klik **Tambah Stok** → masukkan jumlah
+- Semua pergerakan stok tercatat di **Riwayat Stok** (masuk, keluar, penyesuaian)
+
+**Varian Produk**
+
+Cocok untuk produk yang punya variasi. Contoh:
+- Kaos → Varian: S, M, L, XL (stok dan harga bisa berbeda per varian)
+- Tinta Printer → Varian: Hitam, Cyan, Magenta, Yellow
 
 ---
 
 ## 💳 5. Daftar DP / Piutang
 
-![Halaman DP](images/dp.png)
+Daftar semua transaksi yang **belum sepenuhnya dilunasi** oleh pelanggan.
 
-Daftar semua transaksi yang **belum lunas** — pelanggan yang baru bayar sebagian (DP) atau belum bayar sama sekali.
+Ini muncul ketika kasir memilih **Bayar DP** saat bertransaksi — artinya pelanggan baru membayar sebagian dan masih punya sisa tagihan.
 
-**Informasi yang ditampilkan:**
-- Nama pelanggan
-- Total tagihan dan jumlah yang sudah dibayar
-- Sisa yang harus dilunasi
-- Tanggal jatuh tempo
+### Informasi yang Ditampilkan
 
-Klik tombol **"Lunasi"** ketika pelanggan datang untuk melunasi sisanya.
+| Kolom | Keterangan |
+|---|---|
+| Nama Pelanggan | Siapa yang punya piutang |
+| Total Tagihan | Harga total transaksi |
+| Sudah Dibayar | Jumlah DP yang sudah masuk |
+| Sisa Tagihan | Yang masih harus dilunasi |
+| Jatuh Tempo | Deadline pelunasan |
+
+### Cara Mencatat Pelunasan
+
+Saat pelanggan datang untuk melunasi:
+1. Cari nama pelanggan di daftar piutang
+2. Klik tombol **Lunasi**
+3. Pilih metode pembayaran pelunasan
+4. Klik **Konfirmasi** — sistem otomatis mencatat pembayaran dan mengupdate sisa tagihan
+
+> Setiap pelunasan otomatis tercatat di **Cashflow** sebagai pemasukan.
 
 ---
 
 ## 📊 6. Laporan Penjualan
 
-![Halaman Laporan Penjualan](images/sales.png)
+Ringkasan lengkap semua transaksi yang pernah terjadi, bisa difilter berdasarkan rentang tanggal.
 
-Halaman rangkuman semua transaksi penjualan. Kamu bisa **filter berdasarkan tanggal** untuk melihat penjualan hari tertentu, minggu, atau bulan.
+**Yang tersedia:**
+- Filter tanggal (pilih dari–sampai)
+- Detail setiap transaksi: waktu, kasir, item terjual, metode bayar, total
+- Tombol **Cetak Ulang Struk** untuk transaksi lama
+- **Export ke Excel** untuk laporan eksternal atau pembukuan manual
 
 ---
 
 ## 📋 7. Laporan Tutup Shift ⭐
 
-![Halaman Tutup Shift](images/closeshift.png)
+Fitur unggulan PosPro — sistem rekonsiliasi kas yang membantu kasir dan pemilik toko memastikan tidak ada selisih keuangan di akhir shift.
 
-Halaman ini adalah **penutup shift kasir** — diisi di akhir shift sebelum kasir pulang. Hasil laporan otomatis dikirim ke **WhatsApp Group Owner**.
+### Konsep Dasar
 
-### Penjelasan Panel Kiri: "Data Sistem (Otomatis)"
+Sistem secara otomatis menghitung berapa uang yang **seharusnya** ada berdasarkan data transaksi. Kasir kemudian menginput berapa yang **aktualnya** ada. Sistem langsung menampilkan selisihnya.
 
-Ini adalah angka yang **sudah dihitung otomatis oleh POS** — kasir tidak perlu isi, hanya perlu membacanya:
+### Cara Mengisi Form Tutup Shift
+
+**Step 1 — Identitas Kasir**
+- Pilih nama kasir dari dropdown
+- Pilih jenis shift: **Shift Pagi** / **Shift Siang** / **Long Shift**
+
+**Step 2 — Panel Kiri: "Data Sistem" (Baca Saja)**
+
+Panel ini sudah terisi otomatis, kasir hanya perlu membacanya:
 
 | Label | Artinya |
 |---|---|
-| **Total Gross Shift** | Total semua pendapatan shift ini sebelum dikurangi pengeluaran |
-| **Cash** | Uang tunai yang masuk dari transaksi POS |
-| **BCA / Mandiri / dll** | Uang yang masuk via transfer ke rekening tersebut |
-| **QRIS** | Uang yang masuk via QRIS |
-| **Uang tunai di laci** | Berapa uang cash yang seharusnya ada di laci (target sistem) |
-| **EDC QRIS shift ini** | Berapa total QRIS yang seharusnya masuk hari ini |
-| **Target Saldo Bank** | Berapa saldo rekening yang **seharusnya** ada sekarang |
+| Total Gross Shift | Total pendapatan kotor shift ini |
+| Cash | Total uang tunai dari transaksi |
+| Transfer BCA / Mandiri / dll | Total transfer masuk per rekening |
+| QRIS | Total pembayaran via QRIS |
+| Target Saldo Bank | Prediksi saldo rekening sekarang (saldo awal + masuk shift ini) |
 
-> 📌 **Apa itu "Target Saldo Bank"?**
->
-> Ini adalah saldo yang **sistem perkirakan** setelah menjumlahkan saldo awal + semua pendapatan transfer hari ini.
->
-> **Contoh:**
-> - Saldo BCA awal shift = Rp 45.464
-> - Pendapatan BCA hari ini = Rp 34.000
-> - **Target Sistem = Rp 79.464**
->
-> Kamu bandingkan angka ini dengan saldo yang kamu lihat di mBanking.
+**Step 3 — Panel Kanan: "Aktual" (Isi Oleh Kasir)**
+- **Uang Tunai di Laci**: hitung fisik uang di laci kasir, lalu masukkan totalnya
+- **Total QRIS Hari Ini**: buka aplikasi QRIS, lihat total mutasi masuk
+- Setelah diisi, badge otomatis muncul:
+  - 🟢 **LEBIH** — uang aktual lebih dari target
+  - 🔴 **KURANG** — uang aktual kurang dari target
+  - ✅ **BALANCE** — tepat sesuai
 
----
+**Step 4 — Catat Pengeluaran Shift**
 
-### Cara Mengisi Form Tutup Shift (Step by Step)
+Catat semua pengeluaran yang terjadi selama shift:
+- Klik **+ Tambah Item**
+- Isi: keterangan (contoh: "Beli kertas HVS"), nominal, metode bayar (cash/transfer)
 
-**Step 1 — Pilih Nama Kasir & Shift**
-- Pilih namamu dari dropdown "Nama Kasir / CS"
-- Pilih jenis shift: **Shift Pagi** / **Shift Siang** / **Long Shift**
+**Step 5 — Saldo Rekening Bank**
 
-**Step 2 — Isi Kas Aktual**
-- **Uang Tunai di Laci:** Hitung fisik uang di laci, masukkan totalnya
-- **Total Mutasi Masuk QRIS:** Buka aplikasi QRIS, lihat total masuk hari ini
+Buka mBanking masing-masing rekening, lalu isi:
+- **Saldo di Laporan mBanking**: angka yang terlihat di aplikasi bank
+- **Saldo Real**: saldo yang dikonfirmasi sudah benar-benar masuk
 
-Badge akan muncul otomatis:
-- 🟢 **LEBIH** = uang aktual lebih dari target sistem
-- 🔴 **KURANG** = uang aktual kurang dari target sistem
-- ✅ **BALANCE** = pas sesuai
-
-**Step 3 — Catat Pengeluaran**
-- Catat semua pengeluaran yang terjadi di shift ini per metode pembayaran
-- Contoh: `Pengeluaran BCA → "Transfer ke supplier" Rp 100.000`
-- Contoh: `Pengeluaran Cash → "Beli gula kopi" Rp 28.000`
-- Klik **"+ Tambah Item"** untuk menambah baris baru
-
-**Step 4 — Isi Saldo Rekening Bank**
-
-Buka mBanking untuk setiap rekening, lalu isi **dua kolom**:
-| Kolom | Isi dengan |
-|---|---|
-| Saldo di Laporan mBanking | Angka yang tertera di layar mBanking |
-| Saldo Real di Bank | Saldo yang sudah dikonfirmasi benar-benar masuk |
-
-**Step 5 — Lampirkan Foto & Kirim**
-- Lampirkan foto bukti (struk, laci uang, layar EDC, layar mBanking) — bisa lebih dari 1 foto
-- Klik **"📤 Kirim Laporan Shift ke WA"** — laporan otomatis terkirim ke WhatsApp group owner
+**Step 6 — Lampirkan Foto & Kirim**
+- Upload foto bukti (foto laci uang, layar EDC QRIS, layar mBanking) — maksimal 20 foto
+- Klik **Kirim Laporan Shift ke WA** → laporan terkirim otomatis ke grup WhatsApp pemilik
 
 ---
 
 ## 👥 8. Data Pelanggan
 
-![Halaman Pelanggan](images/customers.png)
+Database seluruh pelanggan toko, lengkap dengan riwayat transaksi dan statistik belanja.
 
-Database pelanggan toko. Berguna untuk mencatat pelanggan yang sering berbelanja atau yang punya piutang.
+**Informasi per pelanggan:**
+- Nama, nomor HP, alamat
+- Total pembelian sepanjang waktu
+- Frekuensi belanja
+- Rata-rata nilai transaksi
+- Daftar transaksi terakhir
 
-**Informasi pelanggan:** Nama, nomor HP, alamat, riwayat transaksi.
+**Kegunaan:**
+- Lacak pelanggan setia untuk program loyalitas
+- Identifikasi pelanggan dengan piutang terbesar
+- Export data pelanggan untuk kebutuhan pemasaran
 
 ---
 
 ## 🤖 9. Pengaturan WhatsApp Bot
 
-![Halaman WhatsApp](images/whatsapp.png)
+Bot WhatsApp berjalan langsung di dalam server PosPro — tidak perlu aplikasi atau layanan pihak ketiga.
 
-Halaman untuk menghubungkan **bot WhatsApp** yang bertugas mengirimkan laporan shift secara otomatis ke group owner.
+### Cara Menghubungkan Bot
 
-### Cara Menghubungkan Bot:
-1. Tunggu QR Code muncul di layar
-2. Buka WhatsApp di HP → **Perangkat Tertaut** → **Tautkan Perangkat**
-3. Scan QR Code yang ada di layar
-4. Status akan berubah menjadi **"TERHUBUNG SEDIA"** ✅
+1. Buka halaman **Pengaturan → WhatsApp Bot**
+2. Tunggu QR Code muncul di layar
+3. Di HP Anda: buka **WhatsApp → Perangkat Tertaut → Tautkan Perangkat**
+4. Scan QR Code
+5. Status berubah menjadi **"TERHUBUNG SEDIA"** ✅
 
-### Cara Setup Grup Penerima Laporan:
-1. Tambahkan nomor bot ke group WhatsApp owner
-2. Ketik `!getgroupid` di grup tersebut
-3. Bot akan balas dengan ID grup (angka berakhiran `@g.us`)
-4. Masukkan ID tersebut ke variabel `WHATSAPP_REPORT_GROUP_ID` di file `.env` server
+### Cara Setup Grup Penerima Laporan
 
----
+1. Buat atau buka grup WhatsApp yang akan menerima laporan (contoh: "Owner VOLIKO")
+2. Tambahkan nomor WhatsApp bot ke grup tersebut
+3. Ketik `!getgroupid` di grup — bot akan balas dengan ID grup
+4. Salin ID tersebut (formatnya angka panjang diakhiri `@g.us`)
+5. Ketik: `!botadmin setreportgroup [ID_GRUP_TADI]`
+6. Bot siap mengirim laporan shift ke grup tersebut ✅
 
-## ❓ FAQ
+### Perintah Bot
 
-**Q: Kenapa saldo sistem berbeda dengan yang di mBanking?**
-> Bisa karena ada transaksi yang belum diinput ke POS, atau ada transfer yang belum tercatat. Gunakan kolom "Saldo Laporan mBanking" dan "Saldo Real" untuk mencatatnya.
-
-**Q: Apa yang terjadi kalau nilai aktual kasir berbeda dari target sistem?**
-> Sistem akan menampilkan badge LEBIH atau KURANG sebagai informasi. Laporan tetap bisa dikirim. Perbedaan ini terekam untuk dikonfirmasi admin.
-
-**Q: Kenapa dropdown "Nama Kasir" kosong?**
-> Berarti belum ada data staff/user yang terdaftar. Minta admin untuk menambahkan akun kasir di menu Manajemen User.
-
-**Q: Berapa maksimal foto yang bisa dilampirkan di laporan shift?**
-> Maksimal **20 foto** per laporan shift.
-
-**Q: Apa itu Long Shift?**
-> Long Shift adalah shift panjang yang mencakup lebih dari satu slot waktu normal (misalnya kasir yang kerja dari pagi sampai malam penuh).
-
----
-
-## 💰 10. Cashflow Bisnis
-
-Halaman pencatatan arus kas bisnis — pemasukan dan pengeluaran, otomatis maupun manual.
-
-Panduan lengkap: **[cashflow.md](cashflow.md)**
-
----
-
-## 📄 11. Invoice Generator & Penawaran Harga (SPH)
-
-Buat invoice profesional dan surat penawaran harga (SPH) untuk klien B2B, perusahaan, brand, dan event.
-
-Panduan lengkap: **[invoice-sph.md](invoice-sph.md)**
-
----
-
-## 🗺️ 12. Peta Cuan Lokasi
-
-Visualisasikan cabang dan kompetitor di peta, cari bisnis sejenis by keyword.
-
-Panduan lengkap: **[peta-cuan.md](peta-cuan.md)**
-
----
-
-## 📚 Daftar Semua Halaman Wiki
-
-| File | Topik |
+| Perintah | Fungsi |
 |---|---|
-| [README.md](README.md) | Login, Dashboard, Kasir, Stok, DP, Laporan Shift, WA Bot |
-| [cashflow.md](cashflow.md) | Cashflow Bisnis — filter, chart, tambah entri, export |
-| [invoice-sph.md](invoice-sph.md) | Invoice & Penawaran Harga (SPH) — catalog picker, area-based |
-| [peta-cuan.md](peta-cuan.md) | Peta Cuan Lokasi — cabang, kompetitor, pencarian keyword |
+| `!getgroupid` | Tampilkan ID grup ini |
+| `!botadmin status` | Cek status bot |
+| `!botadmin addgroup [ID]` | Izinkan bot beroperasi di grup ini |
+| `!botadmin removegroup [ID]` | Cabut izin grup |
+| `!botadmin listgroups` | Lihat semua grup yang diizinkan |
+| `!botadmin setreportgroup [ID]` | Atur grup tujuan laporan shift |
+
+### Jika Bot Terputus
+
+Masuk ke **Pengaturan → WhatsApp Bot**, klik **Logout & Restart Bot**, lalu scan QR Code ulang.
 
 ---
 
-*Dokumentasi ini dibuat untuk tim VOLIKO IMOGIRI. Terakhir diperbarui: 6 Maret 2026.*
+## ❓ FAQ Umum
+
+**Q: Apakah PosPro bisa dipakai di HP?**
+> Ya. Tampilan responsif untuk layar HP, tablet, dan PC. Untuk kasir aktif, tablet atau PC lebih nyaman digunakan.
+
+**Q: Apakah data tersimpan secara online atau lokal?**
+> Data tersimpan di database server lokal milik toko (MySQL). Anda memiliki kendali penuh atas data sendiri.
+
+**Q: Apakah bisa multi-kasir (lebih dari satu perangkat)?**
+> Ya — karena berbasis web, beberapa perangkat bisa login dan mengakses PosPro secara bersamaan dari jaringan yang sama.
+
+**Q: Apakah ada fitur laporan pajak?**
+> PosPro mendukung PPN pada Invoice & Penawaran Harga. Untuk laporan pajak formal, gunakan fitur export Excel dan olah di aplikasi akuntansi Anda.
+
+**Q: Bagaimana cara menambah akun kasir baru?**
+> Login sebagai Admin → buka **Pengaturan → Manajemen User** → klik **+ Tambah User** → isi nama, email, dan password.
+
+---
+
+## 📚 Halaman Wiki Lanjutan
+
+Dokumentasi lengkap untuk fitur-fitur bisnis tingkat lanjut:
+
+| Wiki | Isi |
+|---|---|
+| [💰 Cashflow Bisnis](cashflow.md) | Arus kas, chart tren, kategorisasi, export Excel |
+| [📄 Invoice & Penawaran Harga](invoice-sph.md) | Invoice B2B, SPH, catalog picker, area-based pricing |
+| [🗺️ Peta Cuan Lokasi](peta-cuan.md) | Peta cabang, kompetitor, pencarian bisnis by keyword |
+
+---
+
+*Dokumentasi PosPro — Terakhir diperbarui: Maret 2026*
