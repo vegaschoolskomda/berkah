@@ -1,16 +1,12 @@
 # 🛒 PosPro — Aplikasi Kasir & Manajemen Toko Berbasis Web
 
-<div align="center">
-
-![PosPro Banner](https://img.shields.io/badge/PosPro-Point%20of%20Sale-blue?style=for-the-badge&logo=shopify)
-![NestJS](https://img.shields.io/badge/Backend-NestJS-red?style=flat-square&logo=nestjs)
-![Next.js](https://img.shields.io/badge/Frontend-Next.js-black?style=flat-square&logo=next.js)
-![MySQL](https://img.shields.io/badge/Database-MySQL-orange?style=flat-square&logo=mysql)
-![WhatsApp](https://img.shields.io/badge/WhatsApp-Bot%20Terintegrasi-green?style=flat-square&logo=whatsapp)
+[![PosPro Banner](https://img.shields.io/badge/PosPro-Point%20of%20Sale-blue?style=for-the-badge&logo=shopify)](https://github.com/tsunosora/Pos-Web-Application)
+[![NestJS](https://img.shields.io/badge/Backend-NestJS-red?style=flat-square&logo=nestjs)](https://nestjs.com)
+[![Next.js](https://img.shields.io/badge/Frontend-Next.js-black?style=flat-square&logo=next.js)](https://nextjs.org)
+[![MySQL](https://img.shields.io/badge/Database-MySQL-orange?style=flat-square&logo=mysql)](https://mysql.com)
+[![WhatsApp](https://img.shields.io/badge/WhatsApp-Bot%20Terintegrasi-green?style=flat-square&logo=whatsapp)](https://github.com/tsunosora/Pos-Web-Application)
 
 **Solusi kasir modern untuk toko kelontong, percetakan digital, café, dan usaha kecil menengah lainnya.**
-
-</div>
 
 ---
 
@@ -54,46 +50,34 @@ Cukup buka browser, tap, dan transaksi selesai — tanpa perlu instalasi aplikas
 - **Chart tren 6 bulan** (Area Chart): Pemasukan vs. Pengeluaran
 - **Chart breakdown kategori** (Bar Chart horizontal): distribusi per kategori
 - Entri dari transaksi POS masuk **otomatis** (ditandai badge "Otomatis")
-- Edit & hapus entri manual kapan saja
 - **Export ke Excel** untuk laporan eksternal
 
 ### 📄 6. Invoice Generator & Penawaran Harga (SPH)
-- Buat **Invoice profesional** dengan detail klien lengkap (nama, perusahaan, email, HP, alamat)
+- Buat **Invoice profesional** dengan detail klien lengkap
 - Buat **Surat Penawaran Harga (SPH)** khusus untuk klien B2B, perusahaan, brand, dan event
-- **Catalog Picker**: pilih langsung produk/jasa dari daftar inventori, harga terisi otomatis
+- **Catalog Picker**: pilih langsung produk/jasa dari daftar inventori
 - **Custom Item**: input deskripsi, satuan, dan harga bebas untuk jasa non-katalog
 - **Area-Based Item**: input ukuran banner/spanduk dalam Lebar × Tinggi (m), total m² terhitung otomatis
-- Diskon & PPN (Pajak) per dokumen
-- Alur status:
-  - Invoice: DRAFT → SENT → PAID / CANCELLED
-  - SPH: DRAFT → SENT → ACCEPTED / REJECTED / EXPIRED
-- SPH yang diterima (ACCEPTED) bisa **dikonversi ke Invoice** dengan satu klik
+- SPH yang diterima bisa **dikonversi ke Invoice** dengan satu klik
 - **Cetak PDF** — tampilan profesional siap kirim ke klien
 
 ### 📊 7. Laporan Penjualan & Profit
 - Lihat riwayat semua transaksi dengan filter tanggal
 - Laporan **Profit** — kalkulasi margin per produk
 - Laporan **HPP** (Harga Pokok Penjualan) untuk analisis biaya produksi
-- Cetak ulang struk transaksi lama
 - Export laporan ke Excel
 
 ### 🔄 8. Laporan Tutup Shift Kasir
 - Sistem menghitung otomatis total kas, QRIS, dan transfer per shift
-- Kasir wajib input **saldo fisik uang tunai** dan **saldo rekening aktual** dari mBanking
-- Sistem membandingkan: **Sistem vs. Aktual** — langsung kelihatan selisihnya
-- Data tersimpan rapi sebagai laporan shift harian
+- Perbandingan **Sistem vs. Aktual** — langsung kelihatan selisihnya
 
 ### 🗺️ 9. Peta Cuan Lokasi
-- Visualisasi **cabang toko** di peta interaktif dengan warna berdasarkan margin profit
-- Tambah, edit, hapus **pin cabang** langsung dengan klik di peta
-- Tambah **pin kompetitor** manual — tandai lokasi pesaing di peta
-- **Cari bisnis by keyword** (contoh: "Digital Printing") via OpenStreetMap Overpass API
-- Tampilkan semua bisnis sejenis di radius peta yang sedang dilihat
-- Toggle layer: tampilkan/sembunyikan Cabang, Kompetitor, Hasil Pencarian
-- Geocoding alamat: ketik alamat, pin langsung ke koordinat yang tepat
+- Visualisasi **cabang toko** di peta interaktif
+- Tambah **pin kompetitor** manual
+- **Cari bisnis by keyword** via OpenStreetMap Overpass API
 
 ### 📱 10. Bot WhatsApp Terintegrasi
-- Bot WhatsApp berjalan langsung di dalam aplikasi — **tidak perlu aplikasi terpisah**
+- Bot berjalan langsung di dalam aplikasi — tidak perlu aplikasi terpisah
 - Scan QR Code sekali dari halaman pengaturan, bot langsung aktif
 - Bot otomatis mengirim **laporan mutasi keuangan** ke grup WhatsApp pemilik
 
@@ -108,7 +92,7 @@ Cukup buka browser, tap, dan transaksi selesai — tanpa perlu instalasi aplikas
 
 ### 🔐 11. Sistem Autentikasi & Role
 - Login dengan email & password
-- Sistem **token JWT** yang aman — sesi otomatis berakhir jika tidak aktif
+- Sistem **token JWT** yang aman
 - Multi-role: Admin, Kasir, Manager, Owner
 
 ### 👥 12. Data Pelanggan (CRM)
@@ -133,7 +117,7 @@ Cukup buka browser, tap, dan transaksi selesai — tanpa perlu instalasi aplikas
 ├── /maps                   → Peta Cuan Lokasi (cabang + kompetitor)
 ├── /reports/sales          → Laporan riwayat transaksi
 ├── /reports/profit         → Laporan profit & margin
-├── /reports/hpp            → Kalkulator HPP (Harga Pokok Penjualan)
+├── /reports/hpp            → Kalkulator HPP
 └── /settings               → Pengaturan toko, bot WhatsApp, rekening bank
 ```
 
@@ -141,39 +125,36 @@ Cukup buka browser, tap, dan transaksi selesai — tanpa perlu instalasi aplikas
 
 ## 🔧 Teknologi yang Digunakan
 
-### Frontend (Tampilan)
+### Frontend
 | Teknologi | Fungsi |
 |---|---|
 | **Next.js 14** | Framework tampilan web (App Router) |
-| **Tailwind CSS v4** | Sistem desain yang konsisten dan responsif |
-| **TanStack Query** | Sinkronisasi data server-client secara otomatis |
+| **Tailwind CSS v4** | Sistem desain responsif |
+| **TanStack Query** | Sinkronisasi data server-client |
 | **Zustand** | State management keranjang belanja POS |
 | **Axios** | HTTP client dengan JWT interceptor otomatis |
-| **Recharts** | Grafik interaktif (Area Chart, Bar Chart) |
+| **Recharts** | Grafik interaktif |
 | **React Leaflet** | Peta interaktif OpenStreetMap |
 | **xlsx** | Export laporan ke format Excel |
 
-### Backend (Server)
+### Backend
 | Teknologi | Fungsi |
 |---|---|
-| **NestJS** | Server API modular yang kuat dan terstruktur |
-| **Prisma** | ORM — jembatan antara server dan database |
-| **MySQL** | Database penyimpanan semua data toko |
-| **JWT + Passport** | Sistem keamanan login modern |
-| **Multer** | Upload foto produk, QRIS, dan bukti shift |
-| **whatsapp-web.js** | Bot WhatsApp terintegrasi langsung di server |
+| **NestJS** | Server API modular |
+| **Prisma** | ORM database |
+| **MySQL** | Database utama |
+| **JWT + Passport** | Sistem keamanan login |
+| **Multer** | Upload foto produk, QRIS |
+| **whatsapp-web.js** | Bot WhatsApp terintegrasi |
 
 ---
 
 ## 🚀 Cara Menjalankan di Komputer Lokal
 
 ### Prasyarat
-Pastikan sudah terinstall:
 - [Node.js](https://nodejs.org) versi 18 ke atas
-- [MySQL](https://www.mysql.com) — sudah berjalan di komputer
+- [MySQL](https://www.mysql.com)
 - Git
-
----
 
 ### Langkah 1 — Clone Proyek
 ```bash
@@ -181,63 +162,294 @@ git clone https://github.com/tsunosora/Pos-Web-Application.git
 cd Pos-Web-Application
 ```
 
----
-
 ### Langkah 2 — Setup Backend
-
 ```bash
 cd backend
-```
-
-Buat file konfigurasi `.env` dari template:
-```bash
-copy .env.example .env
+cp .env.example .env
 ```
 
 Isi file `.env`:
-```ini
+```env
 DATABASE_URL="mysql://root:PASSWORD_KAMU@localhost:3306/pospro"
-JWT_SECRET="isi_dengan_kalimat_rahasia_acak"
+JWT_SECRET="isi_dengan_kalimat_rahasia_acak_yang_panjang"
 PORT=3001
 ```
 
-Install dan jalankan:
 ```bash
 npm install
 npx prisma db push
 npm run start:dev
 ```
-
 > ✅ Backend berjalan di: **http://localhost:3001**
 
----
-
 ### Langkah 3 — Setup Frontend
-
 ```bash
 cd frontend
 ```
 
 Buat file `.env.local`:
-```ini
+```env
 NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
 
-Install dan jalankan:
 ```bash
 npm install
 npm run dev
 ```
-
 > ✅ Aplikasi dapat diakses di: **http://localhost:3000**
 
----
-
 ### Langkah 4 — Setup Bot WhatsApp (Opsional)
-
 1. Buka `http://localhost:3000/settings/whatsapp`
 2. Scan QR Code via WhatsApp → Perangkat Tertaut
 3. Bot WhatsApp siap digunakan ✅
+
+---
+
+## 🌐 Deploy ke Server (Self-Hosted + Cloudflare Tunnel)
+
+Bagian ini menjelaskan cara deploy PosPro ke homeserver/VPS menggunakan **Cloudflare Tunnel** agar bisa diakses publik dengan domain sendiri tanpa membuka port router.
+
+### Arsitektur Deploy
+
+```
+Browser User
+     │
+     ▼
+Cloudflare Tunnel
+     │
+     ├──► frontend.domain.com  ──► Server:3002  (Frontend Next.js)
+     │
+     └──► api.domain.com       ──► Server:3001  (Backend NestJS)
+                                         │
+                                         ▼
+                                   MySQL (localhost:3306)
+```
+
+### Langkah 1 — Konfigurasi Environment Backend
+
+```bash
+nano backend/.env
+```
+
+```env
+DATABASE_URL="mysql://pospro_user:PASSWORD@localhost:3306/pospro_db"
+PORT=3001
+JWT_SECRET="isi_string_rahasia_panjang_dan_acak"
+```
+
+### Langkah 2 — Konfigurasi Environment Frontend
+
+```bash
+nano frontend/.env.local
+```
+
+```env
+NEXT_PUBLIC_API_URL=https://api.domain-kamu.com
+```
+
+> ⚠️ **WAJIB DIPERHATIKAN — Sumber Error Paling Umum:**
+> - Nilai `NEXT_PUBLIC_API_URL` harus mengarah ke **URL backend/API**, **bukan URL frontend**
+> - Jangan gunakan tanda kutip (`"`) pada nilai di `.env.local` Next.js
+> - File ini harus ada **sebelum** menjalankan `npm run build`
+> - Setelah mengubah file ini, **wajib rebuild** frontend
+
+### Langkah 3 — Pastikan Tidak Ada Hardcode URL di Source Code
+
+Cek dan pastikan semua file menggunakan environment variable, bukan `localhost`:
+
+```bash
+# Cek apakah masih ada localhost yang tertinggal
+grep -r "localhost:3001" frontend/src --include="*.ts" --include="*.tsx"
+```
+
+File yang perlu diperhatikan:
+
+**`frontend/src/components/user-auth-form.tsx`** — pastikan endpoint login menggunakan env:
+```typescript
+// ❌ Salah — hardcoded localhost
+const endpoint = isRegistering
+  ? 'http://localhost:3001/auth/register'
+  : 'http://localhost:3001/auth/login';
+
+// ✅ Benar — pakai environment variable
+const endpoint = isRegistering
+  ? `${process.env.NEXT_PUBLIC_API_URL}/auth/register`
+  : `${process.env.NEXT_PUBLIC_API_URL}/auth/login`;
+```
+
+**`frontend/src/lib/api.ts`** — pastikan baseURL menggunakan env:
+```typescript
+const api = axios.create({
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+});
+```
+
+### Langkah 4 — Konfigurasi CORS Backend
+
+File `backend/src/main.ts`:
+
+```typescript
+app.enableCors({
+  origin: ['https://frontend.domain-kamu.com'],
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  credentials: true,
+  preflightContinue: false,
+  optionsSuccessStatus: 204,
+});
+```
+
+### Langkah 5 — Build & Jalankan dengan PM2
+
+```bash
+# Backend
+cd backend
+npm install
+npm run build
+pm2 start dist/main.js --name backend
+
+# Frontend
+cd ../frontend
+npm install
+npm run build
+pm2 start npm --name frontend -- start -- -p 3002
+
+pm2 save
+pm2 startup
+```
+
+### Langkah 6 — Setup Cloudflare Tunnel
+
+```bash
+cloudflared tunnel login
+cloudflared tunnel create pospro
+```
+
+Buat file `~/.cloudflared/config.yml`:
+
+```yaml
+tunnel: <TUNNEL_ID>
+credentials-file: /home/USER/.cloudflared/<TUNNEL_ID>.json
+
+ingress:
+  - hostname: frontend.domain-kamu.com
+    service: http://localhost:3002
+  - hostname: api.domain-kamu.com
+    service: http://localhost:3001
+  - service: http_status:404
+```
+
+```bash
+sudo cloudflared service install
+sudo systemctl enable cloudflared
+sudo systemctl start cloudflared
+```
+
+---
+
+## ✅ Checklist Sebelum Deploy
+
+Gunakan checklist ini setiap kali deploy ulang untuk menghindari error umum:
+
+### Backend
+- [ ] File `.env` sudah ada dan terisi lengkap
+- [ ] `DATABASE_URL` mengarah ke MySQL yang benar
+- [ ] `JWT_SECRET` sudah diisi (jangan kosong)
+- [ ] CORS di `main.ts` menggunakan **string domain** (bukan `true`)
+- [ ] Folder `public/uploads/` ada: `mkdir -p public/uploads`
+- [ ] Build berhasil: `npm run build`
+
+### Frontend
+- [ ] File `.env.local` **sudah ada** sebelum build
+- [ ] `NEXT_PUBLIC_API_URL` mengarah ke URL **backend** (bukan frontend)
+- [ ] Tidak ada hardcode `localhost` di source code (`grep -r "localhost:3001" src/`)
+- [ ] Build berhasil: `npm run build`
+- [ ] Setelah deploy, **login ulang** untuk mendapatkan token baru
+
+### Cloudflare
+- [ ] Tunnel berjalan: `sudo systemctl status cloudflared`
+- [ ] DNS record sudah terdaftar di Cloudflare dashboard
+- [ ] Tidak ada Transform Rules CORS yang konflik di Cloudflare dashboard
+
+---
+
+## 🐛 Troubleshooting
+
+### ❌ Error: CORS Policy — `Access-Control-Allow-Origin` invalid value `'true'`
+
+**Penyebab:** Nilai CORS di `main.ts` backend salah konfigurasi.
+
+**Solusi:** Pastikan `origin` berisi string domain, bukan boolean:
+```typescript
+// ❌ Salah
+app.enableCors({ origin: true });
+
+// ✅ Benar
+app.enableCors({ origin: ['https://frontend.domain-kamu.com'] });
+```
+
+**Cara verifikasi CORS sudah benar:**
+```bash
+curl -I -X OPTIONS https://api.domain-kamu.com/settings \
+  -H "Origin: https://frontend.domain-kamu.com" \
+  -H "Access-Control-Request-Method: GET"
+
+# Response harus ada:
+# access-control-allow-origin: https://frontend.domain-kamu.com  ✅
+# Bukan: access-control-allow-origin: true  ❌
+```
+
+---
+
+### ❌ Error: 401 Unauthorized — Token tidak tersimpan
+
+**Cara diagnosa:**
+```javascript
+// Buka DevTools → Console → ketik:
+localStorage.getItem('token')
+// Jika null → login gagal, token tidak tersimpan
+```
+
+**Penyebab & solusi:**
+
+| Penyebab | Solusi |
+|---|---|
+| URL login di `user-auth-form.tsx` hardcode `localhost` | Ganti dengan `process.env.NEXT_PUBLIC_API_URL` |
+| `NEXT_PUBLIC_API_URL` salah mengarah ke frontend | Perbaiki `.env.local`, rebuild frontend |
+| Token lama dari sesi sebelumnya | Logout, hapus cache browser, login ulang |
+
+---
+
+### ❌ Frontend tidak bisa akses API (ERR_FAILED / Network Error)
+
+**Kemungkinan penyebab:**
+- `NEXT_PUBLIC_API_URL` di `.env.local` salah atau tidak ada
+- `.env.local` dibuat **setelah** `npm run build`
+- Menggunakan `http://` tapi server hanya menerima `https://`
+
+**Solusi:**
+```bash
+cat frontend/.env.local
+# Pastikan: NEXT_PUBLIC_API_URL=https://api.domain-kamu.com
+
+cd frontend && npm run build && pm2 restart frontend
+```
+
+---
+
+### ❌ Bot WhatsApp terputus
+1. Masuk ke **Pengaturan → Bot WhatsApp**
+2. Klik **Logout & Restart Bot**
+3. Scan QR Code kembali
+
+---
+
+### ❌ Gambar produk / logo / QRIS tidak muncul
+```bash
+mkdir -p backend/public/uploads
+chmod 755 backend/public/uploads
+pm2 restart backend
+```
 
 ---
 
@@ -248,77 +460,72 @@ Pos-Web-Application/
 │
 ├── backend/                        # Server API (NestJS)
 │   ├── prisma/
-│   │   └── schema.prisma           # Skema database (gunakan db push)
+│   │   └── schema.prisma           # Skema database
 │   ├── src/
 │   │   ├── auth/                   # JWT login
-│   │   ├── products/               # Produk, varian, bahan baku, foto
-│   │   ├── transactions/           # POS checkout, DP, dashboard metrics
-│   │   ├── invoices/               # Invoice & SPH (Penawaran Harga)
-│   │   ├── cashflow/               # Arus kas manual + auto dari transaksi
+│   │   ├── products/               # Produk, varian, foto
+│   │   ├── transactions/           # POS checkout, DP, dashboard
+│   │   ├── invoices/               # Invoice & SPH
+│   │   ├── cashflow/               # Arus kas
 │   │   ├── reports/                # Shift close, profit report
-│   │   ├── branches/               # Data cabang toko (CRUD + koordinat)
-│   │   ├── competitors/            # Data kompetitor peta (CRUD + koordinat)
-│   │   ├── customers/              # Data pelanggan + analytics
+│   │   ├── branches/               # Data cabang toko
+│   │   ├── competitors/            # Data kompetitor peta
+│   │   ├── customers/              # Data pelanggan
 │   │   ├── bank-accounts/          # Multi-rekening bank
-│   │   ├── hpp/                    # Kalkulator HPP worksheet
+│   │   ├── hpp/                    # Kalkulator HPP
 │   │   ├── settings/               # Pengaturan toko, logo, QRIS
 │   │   └── whatsapp/               # Bot WhatsApp engine
 │   └── public/
 │       └── uploads/                # Foto produk, QRIS, bukti shift
 │
-├── frontend/                       # Tampilan Web (Next.js)
-│   └── src/
-│       ├── app/
-│       │   ├── pos/                # Kasir utama
-│       │   ├── transactions/dp/    # Piutang & pelunasan
-│       │   ├── inventory/          # Manajemen produk
-│       │   ├── invoices/           # Invoice Generator & SPH
-│       │   ├── cashflow/           # Arus kas bisnis
-│       │   ├── maps/               # Peta Cuan Lokasi
-│       │   ├── customers/          # Data pelanggan
-│       │   └── reports/            # Laporan penjualan, profit, HPP
-│       ├── lib/
-│       │   ├── api.ts              # Semua fungsi API (satu file, satu axios instance)
-│       │   ├── receipt.ts          # Generator struk kasir (HTML thermal)
-│       │   └── export.ts           # Helper export Excel
-│       └── store/
-│           └── cart-store.ts       # Zustand store keranjang belanja POS
-│
-└── docs/
-    └── wiki/                       # Panduan penggunaan fitur-fitur
+└── frontend/                       # Tampilan Web (Next.js)
+    └── src/
+        ├── app/
+        │   ├── pos/                # Kasir utama
+        │   ├── transactions/dp/    # Piutang & pelunasan
+        │   ├── inventory/          # Manajemen produk
+        │   ├── invoices/           # Invoice Generator & SPH
+        │   ├── cashflow/           # Arus kas bisnis
+        │   ├── maps/               # Peta Cuan Lokasi
+        │   ├── customers/          # Data pelanggan
+        │   └── reports/            # Laporan penjualan, profit, HPP
+        ├── lib/
+        │   ├── api.ts              # Semua fungsi API (axios instance)
+        │   ├── receipt.ts          # Generator struk kasir
+        │   └── export.ts           # Helper export Excel
+        └── store/
+            └── cart-store.ts       # Zustand store keranjang belanja
 ```
 
 ---
 
 ## 📚 Dokumentasi & Wiki
 
-Panduan lengkap penggunaan setiap fitur tersedia di folder [`docs/wiki/`](docs/wiki/):
-
 | Dokumen | Isi |
 |---|---|
 | [Panduan Umum](docs/wiki/README.md) | Login, Dashboard, Kasir, Tutup Shift |
 | [Cashflow Bisnis](docs/wiki/cashflow.md) | Cara kelola arus kas, filter, chart, export |
-| [Invoice & Penawaran Harga](docs/wiki/invoice-sph.md) | Buat invoice, SPH, catalog picker, area-based |
-| [Peta Cuan Lokasi](docs/wiki/peta-cuan.md) | Kelola cabang, tambah kompetitor, cari keyword |
+| [Invoice & Penawaran Harga](docs/wiki/invoice-sph.md) | Buat invoice, SPH, catalog picker |
+| [Peta Cuan Lokasi](docs/wiki/peta-cuan.md) | Kelola cabang, tambah kompetitor |
 
 ---
 
 ## ❓ Pertanyaan Umum (FAQ)
 
 **Q: Apakah bisa digunakan tanpa internet?**
-> Fitur peta (Overpass/Nominatim) memerlukan internet. Kasir, laporan, dan cashflow berjalan di jaringan lokal.
+> Fitur peta memerlukan internet. Kasir, laporan, dan cashflow berjalan di jaringan lokal.
 
 **Q: Apakah bisa digunakan di HP?**
 > Ya! Tampilan responsif untuk semua ukuran layar. Disarankan tablet untuk meja kasir.
 
-**Q: Bagaimana jika Bot WhatsApp terputus?**
-> Masuk ke **Pengaturan → Bot WhatsApp**, klik **Logout & Restart Bot**, lalu scan QR Code kembali.
-
 **Q: Apakah bisa untuk lebih dari satu cabang?**
-> Ya — fitur multi-cabang sudah tersedia. Setiap cabang bisa didaftarkan dengan koordinat GPS, data omset, dan margin yang muncul di Peta Cuan Lokasi.
+> Ya — fitur multi-cabang sudah tersedia dengan koordinat GPS dan data omset per cabang.
 
 **Q: Bagaimana cara buat penawaran harga untuk klien perusahaan?**
-> Buka menu **Invoice & Penawaran** → tab **Penawaran Harga (SPH)** → klik **+ Buat SPH**. Isi detail klien, pilih produk dari katalog atau input manual, dan cetak PDF.
+> Buka menu **Invoice & Penawaran** → tab **Penawaran Harga (SPH)** → klik **+ Buat SPH**.
+
+**Q: Setelah deploy ulang, kenapa harus login ulang?**
+> Token JWT lama di browser tidak berlaku setelah rebuild. Selalu logout dan login ulang setelah deploy.
 
 ---
 
@@ -330,15 +537,13 @@ Panduan lengkap penggunaan setiap fitur tersedia di folder [`docs/wiki/`](docs/w
 - [x] Tutup Shift Kasir (Actual vs Expected)
 - [x] Bot WhatsApp terintegrasi
 - [x] Upload & tampilkan foto produk
-- [x] Laporan HPP (Harga Pokok Penjualan)
+- [x] Laporan HPP
 - [x] Export laporan ke Excel
 - [x] Dashboard analitik pemilik toko
 - [x] Cashflow Bisnis dengan chart tren & kategori
 - [x] Invoice Generator profesional
 - [x] Penawaran Harga / SPH untuk klien B2B
-- [x] Catalog Picker di Invoice (pilih dari inventori)
-- [x] Area-based pricing (banner/spanduk per m²)
-- [x] Peta Cuan Lokasi (cabang + kompetitor + pencarian keyword)
+- [x] Peta Cuan Lokasi
 - [ ] Mode offline (PWA)
 - [ ] Notifikasi stok menipis otomatis
 - [ ] Fitur loyalty point pelanggan
@@ -353,10 +558,8 @@ Pull request sangat disambut! Untuk perubahan besar, harap buka issue terlebih d
 
 ## 📄 Lisensi
 
-Proyek ini dikembangkan untuk kebutuhan bisnis internal VOLIKO.
+Proyek ini dikembangkan untuk kebutuhan bisnis internal.
 
 ---
 
-<div align="center">
-  Dibuat dengan ❤️ menggunakan <strong>NestJS</strong> + <strong>Next.js</strong>
-</div>
+Dibuat dengan ❤️ menggunakan **NestJS** + **Next.js**
