@@ -25,6 +25,14 @@ export default function InventoryPage() {
     // Delete confirm
     const [deletingProductId, setDeletingProductId] = useState<number | null>(null);
 
+    // Expanded products (variant accordion)
+    const [expandedProducts, setExpandedProducts] = useState<Set<number>>(new Set());
+    const toggleExpand = (id: number) => setExpandedProducts(prev => {
+        const next = new Set(prev);
+        next.has(id) ? next.delete(id) : next.add(id);
+        return next;
+    });
+
     // Filters
     const [searchText, setSearchText] = useState('');
     const [filterCategory, setFilterCategory] = useState('');
@@ -74,37 +82,38 @@ export default function InventoryPage() {
         return [...new Set(cats)] as string[];
     }, [products]);
 
-    // Filtered rows (flat list of variant rows with product info embedded)
-    const rows = useMemo(() => {
+    // Group by product, filter variants per product
+    const groupedProducts = useMemo(() => {
         if (!products) return [];
-        const allRows: any[] = [];
-        products.forEach((product: any) => {
-            product.variants.forEach((v: any, index: number) => {
-                allRows.push({ product, variant: v, isFirst: index === 0 });
-            });
-        });
-
-        return allRows.filter(({ product, variant }) => {
-            const lowerSearch = searchText.toLowerCase();
-            if (lowerSearch) {
-                const inName = product.name.toLowerCase().includes(lowerSearch);
-                const inSku = variant.sku.toLowerCase().includes(lowerSearch);
-                const inVariantName = (variant.variantName || '').toLowerCase().includes(lowerSearch);
-                if (!inName && !inSku && !inVariantName) return false;
-            }
-            if (filterSkuVariant && !variant.sku.toLowerCase().includes(filterSkuVariant.toLowerCase())
-                && !(variant.variantName || '').toLowerCase().includes(filterSkuVariant.toLowerCase())) return false;
-            if (filterCategory && product.category?.name !== filterCategory) return false;
-            if (filterType && (product.productType || 'SELLABLE') !== filterType) return false;
-            const price = Number(variant.price);
-            if (filterMinPrice && price < Number(filterMinPrice)) return false;
-            if (filterMaxPrice && price > Number(filterMaxPrice)) return false;
-            if (filterMinStock && product.trackStock !== false && variant.stock < Number(filterMinStock)) return false;
-            return true;
-        });
+        return (products as any[])
+            .map((product: any) => {
+                const matchedVariants = product.variants.filter((v: any) => {
+                    const lowerSearch = searchText.toLowerCase();
+                    if (lowerSearch) {
+                        const inName = product.name.toLowerCase().includes(lowerSearch);
+                        const inSku = v.sku.toLowerCase().includes(lowerSearch);
+                        const inVariantName = (v.variantName || '').toLowerCase().includes(lowerSearch);
+                        if (!inName && !inSku && !inVariantName) return false;
+                    }
+                    if (filterSkuVariant && !v.sku.toLowerCase().includes(filterSkuVariant.toLowerCase())
+                        && !(v.variantName || '').toLowerCase().includes(filterSkuVariant.toLowerCase())) return false;
+                    if (filterCategory && product.category?.name !== filterCategory) return false;
+                    if (filterType && (product.productType || 'SELLABLE') !== filterType) return false;
+                    const price = Number(v.price);
+                    if (filterMinPrice && price < Number(filterMinPrice)) return false;
+                    if (filterMaxPrice && price > Number(filterMaxPrice)) return false;
+                    if (filterMinStock && product.trackStock !== false && v.stock < Number(filterMinStock)) return false;
+                    return true;
+                });
+                return { product, matchedVariants };
+            })
+            .filter(({ matchedVariants }) => matchedVariants.length > 0);
     }, [products, searchText, filterSkuVariant, filterCategory, filterType, filterMinPrice, filterMaxPrice, filterMinStock]);
 
+    const totalRows = groupedProducts.reduce((acc, { matchedVariants }) => acc + matchedVariants.length, 0);
+
     const hasActiveFilters = filterCategory || filterSkuVariant || filterMinPrice || filterMaxPrice || filterMinStock || filterType;
+    const isFilterActive = !!(searchText || hasActiveFilters);
 
     const clearFilters = () => {
         setFilterCategory('');
@@ -240,7 +249,7 @@ export default function InventoryPage() {
                         )}
 
                         <span className="ml-auto text-xs text-muted-foreground">
-                            {rows.length} baris
+                            {groupedProducts.length} produk · {totalRows} varian
                         </span>
                     </div>
                 </div>
@@ -251,103 +260,100 @@ export default function InventoryPage() {
                         <div className="py-10 text-center text-muted-foreground">Memuat data produk...</div>
                     ) : error ? (
                         <div className="py-10 text-center text-destructive">Gagal memuat produk.</div>
-                    ) : rows.length === 0 ? (
+                    ) : groupedProducts.length === 0 ? (
                         <div className="py-10 text-center text-muted-foreground">
                             <Package className="h-8 w-8 mx-auto mb-2 opacity-20" />
                             {searchText || hasActiveFilters ? 'Tidak ada produk yang cocok.' : 'Belum ada produk.'}
                         </div>
-                    ) : rows.map(({ product, variant, isFirst }) => {
+                    ) : groupedProducts.map(({ product, matchedVariants }) => {
                         const productImages = product.imageUrls ? (() => { try { return JSON.parse(product.imageUrls); } catch { return []; } })() : [];
-                        const avatarSrc = variant.variantImageUrl || productImages[0] || product.imageUrl;
                         const typeCfg = PRODUCT_TYPE_CONFIG[product.productType || 'SELLABLE'];
+                        const hasMultiple = matchedVariants.length > 1;
+                        const expanded = isFilterActive || expandedProducts.has(product.id);
+                        const visibleVariants = expanded ? matchedVariants : [matchedVariants[0]];
                         return (
-                            <div key={variant.id} className="p-4 hover:bg-muted/20 transition-colors">
-                                <div className="flex items-start gap-3">
-                                    {/* Thumbnail */}
-                                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden border border-border shrink-0">
-                                        {avatarSrc
-                                            ? <img src={`${API_BASE}${avatarSrc}`} alt={product.name} className="w-full h-full object-cover" />
-                                            : <ImageIcon className="w-5 h-5 text-muted-foreground/40" />}
-                                    </div>
-
-                                    <div className="flex-1 min-w-0">
-                                        {/* Name + stock */}
-                                        <div className="flex items-start justify-between gap-2">
-                                            <div className="min-w-0">
-                                                <p className="font-semibold text-sm text-foreground truncate">{product.name}</p>
-                                                <p className="text-xs text-muted-foreground font-mono">{variant.sku}</p>
-                                                {variant.variantName && <p className="text-xs text-muted-foreground">{variant.variantName}</p>}
-                                                {(variant.size || variant.color) && (
-                                                    <div className="flex gap-1 mt-0.5">
-                                                        {variant.size && <span className="text-[10px] border border-border rounded px-1 text-muted-foreground">{variant.size}</span>}
-                                                        {variant.color && <span className="text-[10px] border border-border rounded px-1 text-muted-foreground">{variant.color}</span>}
-                                                    </div>
-                                                )}
-                                            </div>
-                                            {/* Stock */}
-                                            <div className="shrink-0 text-right">
-                                                {product.trackStock === false ? (
-                                                    <>
-                                                        <p className="text-lg font-bold leading-none text-blue-500">∞</p>
-                                                        <p className="text-[10px] text-blue-400 mt-0.5">tak terbatas</p>
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <p className={`text-lg font-bold leading-none ${variant.stock < 10 ? 'text-destructive' : 'text-foreground'}`}>{variant.stock}</p>
-                                                        <p className="text-[10px] text-muted-foreground mt-0.5">stok</p>
-                                                        {variant.stock < 10 && <span className="text-[10px] text-destructive font-medium">Menipis</span>}
-                                                    </>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        {/* Price row + badges */}
-                                        <div className="flex items-center flex-wrap gap-2 mt-1.5">
-                                            <span className="text-sm font-bold text-primary">Rp {Number(variant.price).toLocaleString('id-ID')}</span>
-                                            {Number(variant.hpp) > 0 && (
-                                                <span className="text-xs text-muted-foreground">Modal: Rp {Number(variant.hpp).toLocaleString('id-ID')}</span>
-                                            )}
-                                            {isFirst && product.category?.name && (
-                                                <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{product.category.name}</span>
-                                            )}
-                                            {isFirst && typeCfg && (
-                                                <span className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold ${typeCfg.className}`}>{typeCfg.label}</span>
-                                            )}
-                                        </div>
-
-                                        {/* Actions */}
-                                        <div className="flex items-center gap-2 mt-2.5">
-                                            <button onClick={() => openMovementModal(variant)}
-                                                className="flex items-center gap-1 text-primary text-xs border border-primary/20 bg-primary/10 px-2.5 py-1.5 rounded-lg">
-                                                <RefreshCw className="h-3 w-3" /> Sesuaikan Stok
-                                            </button>
-                                            {isFirst && (
-                                                <>
-                                                    <button onClick={() => router.push(`/inventory/products/${product.id}/edit`)}
-                                                        className="flex items-center gap-1 text-xs border border-border bg-muted/50 px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors">
-                                                        <Pencil className="h-3 w-3" /> Edit
-                                                    </button>
-                                                    {deletingProductId === product.id ? (
-                                                        <div className="flex items-center gap-1">
-                                                            <span className="text-xs text-destructive">Hapus?</span>
-                                                            <button onClick={() => deleteMutation.mutate(product.id)} disabled={deleteMutation.isPending} className="p-1.5 rounded text-destructive hover:bg-destructive/10 transition-colors">
-                                                                <Trash2 className="h-3.5 w-3.5" />
-                                                            </button>
-                                                            <button onClick={() => setDeletingProductId(null)} className="p-1.5 rounded text-muted-foreground hover:bg-muted transition-colors">
-                                                                <X className="h-3.5 w-3.5" />
-                                                            </button>
+                            <div key={product.id}>
+                                {visibleVariants.map((variant: any, idx: number) => {
+                                    const isFirst = idx === 0;
+                                    const avatarSrc = variant.variantImageUrl || productImages[0] || product.imageUrl;
+                                    return (
+                                        <div key={variant.id} className={`p-4 hover:bg-muted/20 transition-colors ${!isFirst ? 'bg-muted/10 border-t border-dashed border-border/50' : ''}`}>
+                                            <div className="flex items-start gap-3">
+                                                <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden border border-border shrink-0">
+                                                    {avatarSrc
+                                                        ? <img src={`${API_BASE}${avatarSrc}`} alt={product.name} className="w-full h-full object-cover" />
+                                                        : <ImageIcon className="w-5 h-5 text-muted-foreground/40" />}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <div className="min-w-0">
+                                                            <p className="font-semibold text-sm text-foreground truncate">{product.name}</p>
+                                                            <p className="text-xs text-muted-foreground font-mono">{variant.sku}</p>
+                                                            {variant.variantName && <p className="text-xs text-muted-foreground">{variant.variantName}</p>}
+                                                            {(variant.size || variant.color) && (
+                                                                <div className="flex gap-1 mt-0.5">
+                                                                    {variant.size && <span className="text-[10px] border border-border rounded px-1 text-muted-foreground">{variant.size}</span>}
+                                                                    {variant.color && <span className="text-[10px] border border-border rounded px-1 text-muted-foreground">{variant.color}</span>}
+                                                                </div>
+                                                            )}
                                                         </div>
-                                                    ) : (
-                                                        <button onClick={() => setDeletingProductId(product.id)}
-                                                            className="p-1.5 rounded text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-colors">
-                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                        <div className="shrink-0 text-right">
+                                                            {product.trackStock === false ? (
+                                                                <>
+                                                                    <p className="text-lg font-bold leading-none text-blue-500">∞</p>
+                                                                    <p className="text-[10px] text-blue-400 mt-0.5">tak terbatas</p>
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <p className={`text-lg font-bold leading-none ${variant.stock < 10 ? 'text-destructive' : 'text-foreground'}`}>{variant.stock}</p>
+                                                                    <p className="text-[10px] text-muted-foreground mt-0.5">stok</p>
+                                                                    {variant.stock < 10 && <span className="text-[10px] text-destructive font-medium">Menipis</span>}
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center flex-wrap gap-2 mt-1.5">
+                                                        <span className="text-sm font-bold text-primary">Rp {Number(variant.price).toLocaleString('id-ID')}</span>
+                                                        {Number(variant.hpp) > 0 && <span className="text-xs text-muted-foreground">Modal: Rp {Number(variant.hpp).toLocaleString('id-ID')}</span>}
+                                                        {isFirst && product.category?.name && <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{product.category.name}</span>}
+                                                        {isFirst && typeCfg && <span className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold ${typeCfg.className}`}>{typeCfg.label}</span>}
+                                                    </div>
+                                                    <div className="flex items-center gap-2 mt-2.5">
+                                                        <button onClick={() => openMovementModal(variant)} className="flex items-center gap-1 text-primary text-xs border border-primary/20 bg-primary/10 px-2.5 py-1.5 rounded-lg">
+                                                            <RefreshCw className="h-3 w-3" /> Sesuaikan Stok
                                                         </button>
-                                                    )}
-                                                </>
-                                            )}
+                                                        {isFirst && (
+                                                            <>
+                                                                <button onClick={() => router.push(`/inventory/products/${product.id}/edit`)} className="flex items-center gap-1 text-xs border border-border bg-muted/50 px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors">
+                                                                    <Pencil className="h-3 w-3" /> Edit
+                                                                </button>
+                                                                {deletingProductId === product.id ? (
+                                                                    <div className="flex items-center gap-1">
+                                                                        <span className="text-xs text-destructive">Hapus?</span>
+                                                                        <button onClick={() => deleteMutation.mutate(product.id)} disabled={deleteMutation.isPending} className="p-1.5 rounded text-destructive hover:bg-destructive/10 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+                                                                        <button onClick={() => setDeletingProductId(null)} className="p-1.5 rounded text-muted-foreground hover:bg-muted transition-colors"><X className="h-3.5 w-3.5" /></button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <button onClick={() => setDeletingProductId(product.id)} className="p-1.5 rounded text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-colors"><Trash2 className="h-3.5 w-3.5" /></button>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
+                                    );
+                                })}
+                                {/* Expand/collapse toggle — mobile */}
+                                {hasMultiple && !isFilterActive && (
+                                    <button
+                                        onClick={() => toggleExpand(product.id)}
+                                        className="w-full py-2 flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors border-t border-dashed border-border/50"
+                                    >
+                                        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                                        {expanded ? 'Sembunyikan varian' : `Lihat ${matchedVariants.length - 1} varian lainnya`}
+                                    </button>
+                                )}
                             </div>
                         );
                     })}
@@ -369,132 +375,130 @@ export default function InventoryPage() {
                         </thead>
                         <tbody className="bg-card divide-y divide-border/50">
                             {isLoading ? (
-                                <tr><td colSpan={6} className="px-5 py-8 text-center text-muted-foreground">Memuat data produk...</td></tr>
+                                <tr><td colSpan={7} className="px-5 py-8 text-center text-muted-foreground">Memuat data produk...</td></tr>
                             ) : error ? (
                                 <tr><td colSpan={7} className="px-5 py-8 text-center text-destructive">Gagal memuat produk.</td></tr>
-                            ) : rows.length === 0 ? (
+                            ) : groupedProducts.length === 0 ? (
                                 <tr>
                                     <td colSpan={7} className="px-5 py-10 text-center text-muted-foreground">
                                         <Package className="h-8 w-8 mx-auto mb-2 opacity-20" />
                                         {searchText || hasActiveFilters ? 'Tidak ada produk yang cocok dengan filter.' : 'Belum ada produk. Silakan tambah produk baru.'}
                                     </td>
                                 </tr>
-                            ) : (
-                                rows.map(({ product, variant, isFirst }) => {
-                                    const productImages = product.imageUrls ? (() => { try { return JSON.parse(product.imageUrls); } catch { return []; } })() : [];
-                                    const avatarSrc = variant.variantImageUrl || productImages[0] || product.imageUrl;
-                                    return (
-                                        <tr key={variant.id} className="hover:bg-muted/30 transition-colors group">
-                                            <td className="px-5 py-4 whitespace-nowrap">
-                                                <div className="text-sm font-medium text-foreground">{variant.sku}</div>
-                                                {variant.variantName && (
-                                                    <div className="text-xs text-muted-foreground mt-0.5">{variant.variantName}</div>
-                                                )}
-                                                <div className="flex gap-1 mt-0.5">
-                                                    {variant.size && <span className="text-xs text-muted-foreground border border-border rounded px-1">{variant.size}</span>}
-                                                    {variant.color && <span className="text-xs text-muted-foreground border border-border rounded px-1">{variant.color}</span>}
-                                                </div>
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap text-sm text-foreground/80">
-                                                {isFirst ? (
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center overflow-hidden border border-border shrink-0">
-                                                            {avatarSrc ? (
-                                                                <img src={`${API_BASE}${avatarSrc}`} alt={product.name} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <ImageIcon className="w-5 h-5 text-muted-foreground/50" />
-                                                            )}
-                                                        </div>
-                                                        <div>
-                                                            <div className="flex items-center gap-2 flex-wrap">
-                                                                <span className="font-medium text-foreground">{product.name}</span>
-                                                                {(() => {
-                                                                    const type = product.productType || 'SELLABLE';
-                                                                    const cfg = PRODUCT_TYPE_CONFIG[type];
-                                                                    return cfg ? (
-                                                                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${cfg.className}`}>
-                                                                            {cfg.label}
-                                                                        </span>
-                                                                    ) : null;
-                                                                })()}
-                                                            </div>
-                                                            {product.ingredients?.length > 0 && (
-                                                                <div className="text-xs text-muted-foreground mt-0.5">{product.ingredients.length} bahan</div>
-                                                            )}
-                                                        </div>
+                            ) : groupedProducts.map(({ product, matchedVariants }) => {
+                                const productImages = product.imageUrls ? (() => { try { return JSON.parse(product.imageUrls); } catch { return []; } })() : [];
+                                const hasMultiple = matchedVariants.length > 1;
+                                const expanded = isFilterActive || expandedProducts.has(product.id);
+                                const visibleVariants = expanded ? matchedVariants : [matchedVariants[0]];
+                                const hiddenCount = matchedVariants.length - 1;
+
+                                return [
+                                    ...visibleVariants.map((variant: any, idx: number) => {
+                                        const isFirst = idx === 0;
+                                        const avatarSrc = variant.variantImageUrl || productImages[0] || product.imageUrl;
+                                        return (
+                                            <tr key={variant.id} className={`hover:bg-muted/30 transition-colors group ${!isFirst ? 'bg-muted/5' : ''}`}>
+                                                <td className="px-5 py-4 whitespace-nowrap">
+                                                    <div className="text-sm font-medium text-foreground">{variant.sku}</div>
+                                                    {variant.variantName && <div className="text-xs text-muted-foreground mt-0.5">{variant.variantName}</div>}
+                                                    <div className="flex gap-1 mt-0.5">
+                                                        {variant.size && <span className="text-xs text-muted-foreground border border-border rounded px-1">{variant.size}</span>}
+                                                        {variant.color && <span className="text-xs text-muted-foreground border border-border rounded px-1">{variant.color}</span>}
                                                     </div>
-                                                ) : (
-                                                    <span className="text-muted-foreground/40 ml-13 pl-1 text-xs">↳ Varian</span>
-                                                )}
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap">
-                                                {isFirst && (
-                                                    <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-                                                        {product.category?.name}
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap text-sm text-foreground/80 text-right font-medium">
-                                                Rp {Number(variant.price).toLocaleString('id-ID')}
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap text-sm text-muted-foreground text-right">
-                                                Rp {Number(variant.hpp || 0).toLocaleString('id-ID')}
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap text-right">
-                                                <div className="flex items-center justify-end gap-2">
-                                                    {product.trackStock === false ? (
-                                                        <span className="text-sm font-bold text-blue-500">∞</span>
-                                                    ) : (
-                                                        <>
-                                                            <span className={`text-sm font-medium ${variant.stock < 10 ? 'text-destructive' : 'text-foreground'}`}>{variant.stock}</span>
-                                                            {variant.stock < 10 && (
-                                                                <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">Menipis</span>
-                                                            )}
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </td>
-                                            <td className="px-5 py-4 whitespace-nowrap text-right">
-                                                <div className="flex items-center justify-end gap-1.5">
-                                                    <button onClick={() => openMovementModal(variant)} className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors text-xs border border-primary/20 bg-primary/10 px-2 py-1 rounded" title="Adjust Stok">
-                                                        <RefreshCw className="h-3 w-3" /> Stok
-                                                    </button>
-                                                    {isFirst && (
-                                                        <>
-                                                            <button
-                                                                onClick={() => router.push(`/inventory/products/${product.id}/edit`)}
-                                                                className="flex items-center gap-1 text-xs border border-border bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors opacity-0 group-hover:opacity-100"
-                                                                title="Edit Produk"
-                                                            >
-                                                                <Pencil className="h-3 w-3" /> Edit
-                                                            </button>
-                                                            {deletingProductId === product.id ? (
-                                                                <div className="flex items-center gap-1">
-                                                                    <span className="text-xs text-destructive">Hapus?</span>
-                                                                    <button onClick={() => deleteMutation.mutate(product.id)} disabled={deleteMutation.isPending} className="p-1 rounded text-destructive hover:bg-destructive/10 transition-colors">
-                                                                        <Trash2 className="h-3 w-3" />
-                                                                    </button>
-                                                                    <button onClick={() => setDeletingProductId(null)} className="p-1 rounded text-muted-foreground hover:bg-muted transition-colors">
-                                                                        <X className="h-3 w-3" />
-                                                                    </button>
+                                                </td>
+                                                <td className="px-5 py-4 whitespace-nowrap text-sm text-foreground/80">
+                                                    {isFirst ? (
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center overflow-hidden border border-border shrink-0">
+                                                                {avatarSrc ? <img src={`${API_BASE}${avatarSrc}`} alt={product.name} className="w-full h-full object-cover" /> : <ImageIcon className="w-5 h-5 text-muted-foreground/50" />}
+                                                            </div>
+                                                            <div>
+                                                                <div className="flex items-center gap-2 flex-wrap">
+                                                                    <span className="font-medium text-foreground">{product.name}</span>
+                                                                    {(() => { const cfg = PRODUCT_TYPE_CONFIG[product.productType || 'SELLABLE']; return cfg ? <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold border ${cfg.className}`}>{cfg.label}</span> : null; })()}
+                                                                    {/* Variant badge + toggle — hanya tampil saat collapsed */}
+                                                                    {hasMultiple && !isFilterActive && (
+                                                                        <button
+                                                                            onClick={() => toggleExpand(product.id)}
+                                                                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted border border-border text-[10px] text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-colors"
+                                                                        >
+                                                                            <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                                                                            {expanded ? `${matchedVariants.length} varian` : `+${hiddenCount} varian`}
+                                                                        </button>
+                                                                    )}
                                                                 </div>
-                                                            ) : (
-                                                                <button
-                                                                    onClick={() => setDeletingProductId(product.id)}
-                                                                    className="p-1.5 rounded text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100"
-                                                                    title="Hapus Produk"
-                                                                >
-                                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                                </button>
-                                                            )}
-                                                        </>
+                                                                {product.ingredients?.length > 0 && <div className="text-xs text-muted-foreground mt-0.5">{product.ingredients.length} bahan</div>}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-muted-foreground/40 pl-13 text-xs">↳ Varian</span>
                                                     )}
-                                                </div>
+                                                </td>
+                                                <td className="px-5 py-4 whitespace-nowrap">
+                                                    {isFirst && <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">{product.category?.name}</span>}
+                                                </td>
+                                                <td className="px-5 py-4 whitespace-nowrap text-sm text-foreground/80 text-right font-medium">
+                                                    Rp {Number(variant.price).toLocaleString('id-ID')}
+                                                </td>
+                                                <td className="px-5 py-4 whitespace-nowrap text-sm text-muted-foreground text-right">
+                                                    Rp {Number(variant.hpp || 0).toLocaleString('id-ID')}
+                                                </td>
+                                                <td className="px-5 py-4 whitespace-nowrap text-right">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        {product.trackStock === false ? (
+                                                            <span className="text-sm font-bold text-blue-500">∞</span>
+                                                        ) : (
+                                                            <>
+                                                                <span className={`text-sm font-medium ${variant.stock < 10 ? 'text-destructive' : 'text-foreground'}`}>{variant.stock}</span>
+                                                                {variant.stock < 10 && <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">Menipis</span>}
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                                <td className="px-5 py-4 whitespace-nowrap text-right">
+                                                    <div className="flex items-center justify-end gap-1.5">
+                                                        <button onClick={() => openMovementModal(variant)} className="flex items-center gap-1 text-primary hover:text-primary/80 transition-colors text-xs border border-primary/20 bg-primary/10 px-2 py-1 rounded" title="Adjust Stok">
+                                                            <RefreshCw className="h-3 w-3" /> Stok
+                                                        </button>
+                                                        {isFirst && (
+                                                            <>
+                                                                <button onClick={() => router.push(`/inventory/products/${product.id}/edit`)} className="flex items-center gap-1 text-xs border border-border bg-muted/50 px-2 py-1 rounded hover:bg-muted transition-colors opacity-0 group-hover:opacity-100" title="Edit Produk">
+                                                                    <Pencil className="h-3 w-3" /> Edit
+                                                                </button>
+                                                                {deletingProductId === product.id ? (
+                                                                    <div className="flex items-center gap-1">
+                                                                        <span className="text-xs text-destructive">Hapus?</span>
+                                                                        <button onClick={() => deleteMutation.mutate(product.id)} disabled={deleteMutation.isPending} className="p-1 rounded text-destructive hover:bg-destructive/10 transition-colors"><Trash2 className="h-3 w-3" /></button>
+                                                                        <button onClick={() => setDeletingProductId(null)} className="p-1 rounded text-muted-foreground hover:bg-muted transition-colors"><X className="h-3 w-3" /></button>
+                                                                    </div>
+                                                                ) : (
+                                                                    <button onClick={() => setDeletingProductId(product.id)} className="p-1.5 rounded text-destructive/60 hover:text-destructive hover:bg-destructive/10 transition-colors opacity-0 group-hover:opacity-100" title="Hapus Produk">
+                                                                        <Trash2 className="h-3.5 w-3.5" />
+                                                                    </button>
+                                                                )}
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        );
+                                    }),
+                                    // Collapsed row — tampil jika ada varian tersembunyi
+                                    (!expanded && hasMultiple && !isFilterActive) ? (
+                                        <tr key={`toggle-${product.id}`}>
+                                            <td colSpan={7} className="px-5 py-0">
+                                                <button
+                                                    onClick={() => toggleExpand(product.id)}
+                                                    className="w-full py-2 flex items-center justify-center gap-1.5 text-xs text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors rounded-b border-t border-dashed border-border/50"
+                                                >
+                                                    <ChevronDown className="h-3.5 w-3.5" />
+                                                    Lihat {hiddenCount} varian lainnya
+                                                </button>
                                             </td>
                                         </tr>
-                                    );
-                                })
-                            )}
+                                    ) : null
+                                ];
+                            })}
                         </tbody>
                     </table>
                 </div>
