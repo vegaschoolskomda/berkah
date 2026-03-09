@@ -74,7 +74,11 @@ Halaman kasir adalah inti dari aplikasi — tempat mencatat setiap transaksi pen
 
 **Langkah 2 — Atur Keranjang**
 - Klik tombol **+** / **−** untuk mengubah jumlah
-- Untuk produk **Digital Printing** (banner, sticker, MMT): masukkan ukuran lebar dan tinggi dalam meter — harga otomatis dihitung per m²
+- Untuk produk **Digital Printing** (banner, sticker, MMT): masukkan ukuran lebar dan tinggi — harga dihitung otomatis sesuai satuan:
+  - **Meter (m²)**: harga per m², masukkan Lebar × Tinggi dalam meter
+  - **Sentimeter (cm²)**: harga per cm², masukkan Lebar × Tinggi dalam cm — cocok untuk produk harga-per-cm²
+  - **Menit**: harga per menit, masukkan durasi di kolom lebar
+- Produk dengan **∞** (Tanpa Lacak Stok) bisa ditambahkan ke keranjang tanpa batas
 - Klik ikon tempat sampah untuk menghapus item dari keranjang
 
 **Langkah 3 — Pilih Metode Pembayaran**
@@ -91,7 +95,7 @@ Halaman kasir adalah inti dari aplikasi — tempat mencatat setiap transaksi pen
 - Klik **Cetak** untuk mencetak ke printer thermal
 - Klik **Kirim WA** untuk mengirim ringkasan tagihan ke WhatsApp pelanggan
 
-> **Tips**: Untuk toko percetakan digital, produk dengan mode **Area Based** akan otomatis memunculkan input Lebar × Tinggi saat ditambahkan ke keranjang.
+> **Tips**: Produk mode **Area Based** akan otomatis memunculkan modal input Lebar × Tinggi saat ditambahkan ke keranjang. Pilih satuan yang sesuai produk (m, cm, atau menit) — harga dan stok dihitung secara independen berdasarkan satuan tersebut.
 
 ---
 
@@ -106,14 +110,21 @@ Halaman untuk mengelola semua produk, varian, bahan baku, dan stok yang dijual d
 2. Isi nama, kategori, satuan, dan harga jual
 3. Pilih **Mode Harga**:
    - **Normal (per unit)**: untuk produk yang dijual per pcs, lusin, kg, dll
-   - **Area Based (per m²)**: untuk banner, sticker, MMT, kain — harga dihitung dari lebar × tinggi
-4. Upload foto produk (opsional tapi direkomendasikan)
-5. Tambahkan **Varian** jika produk memiliki pilihan ukuran/warna/jenis
-6. Tambahkan **Bahan Baku** jika ingin stok bahan baku otomatis terpotong saat produk terjual
-7. Klik **Simpan**
+   - **Area Based**: untuk banner, sticker, MMT, kain — harga dihitung dari lebar × tinggi. Pilih satuan:
+     - **m** → harga per m² (standar percetakan)
+     - **cm** → harga per cm² (produk dengan harga satuan cm²)
+     - **menit** → harga per menit (jasa berbasis durasi)
+4. Atur **Lacak Stok**:
+   - **Aktif** (default): stok terpotong otomatis setiap transaksi, bisa dimonitor & diisi ulang
+   - **Nonaktif** (Tanpa Lacak Stok): produk/jasa tidak butuh kontrol stok — tampil **∞** di kasir dan inventori, bisa diorder tanpa batas
+5. Upload foto produk (opsional tapi direkomendasikan; format JPG, PNG, WEBP, JFIF)
+6. Tambahkan **Varian** jika produk memiliki pilihan ukuran/warna/jenis
+7. Tambahkan **Bahan Baku** jika ingin stok bahan baku otomatis terpotong saat produk terjual
+8. Klik **Simpan**
 
 **Mengelola Stok**
-- Stok terpotong **otomatis** setiap kali ada transaksi di kasir
+- Stok terpotong **otomatis** setiap kali ada transaksi di kasir (hanya produk yang **Lacak Stok** aktif)
+- Produk dengan **Tanpa Lacak Stok** ditampilkan dengan simbol **∞** — tidak perlu diisi stoknya, tetap bisa diorder
 - Untuk penambahan stok (restock), buka produk → klik **Tambah Stok** → masukkan jumlah
 - Semua pergerakan stok tercatat di **Riwayat Stok** (masuk, keluar, penyesuaian)
 
@@ -337,4 +348,4 @@ Dokumentasi lengkap untuk fitur-fitur bisnis tingkat lanjut:
 
 ---
 
-*Dokumentasi PosPro — Terakhir diperbarui: 9 Maret 2026*
+*Dokumentasi PosPro — Terakhir diperbarui: 9 Maret 2026 | v2.5 — Tanpa Lacak Stok, multi-satuan area (m/cm/menit), JFIF support, HPP kategori sync*

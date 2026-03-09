@@ -64,6 +64,7 @@ export default function EditProductPage() {
     const [pricePerUnit, setPricePerUnit] = useState('');
     const [requiresProduction, setRequiresProduction] = useState(false);
     const [hasAssemblyStage, setHasAssemblyStage] = useState(false);
+    const [trackStock, setTrackStock] = useState(true);
     const [imageFiles, setImageFiles] = useState<(File | null)[]>([null, null, null, null]);
     const [imagePreviews, setImagePreviews] = useState<(string | null)[]>([null, null, null, null]);
     const [existingImageUrls, setExistingImageUrls] = useState<(string | null)[]>([null, null, null, null]);
@@ -93,6 +94,7 @@ export default function EditProductPage() {
             setPricePerUnit(product.pricePerUnit ? String(product.pricePerUnit) : '');
             setRequiresProduction(product.requiresProduction || false);
             setHasAssemblyStage(product.hasAssemblyStage || false);
+            setTrackStock(product.trackStock !== false); // default true if not set
 
             // Parse existing images
             let existingUrls: (string | null)[] = [null, null, null, null];
@@ -154,6 +156,7 @@ export default function EditProductPage() {
                 productType,
                 requiresProduction,
                 hasAssemblyStage,
+                trackStock,
                 pricePerUnit: pricingMode === 'AREA_BASED' ? Number(pricePerUnit) : null,
                 variants: variants.map(v => ({
                     id: v.id,
@@ -423,6 +426,32 @@ export default function EditProductPage() {
                     </div>
                 )}
 
+                {/* Track Stock toggle */}
+                <div className="glass p-4 rounded-xl border border-border shadow-sm">
+                    <label className="flex items-center justify-between gap-3 cursor-pointer">
+                        <div>
+                            <p className="text-sm font-semibold">Lacak Stok Produk</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                                {trackStock
+                                    ? 'Stok dipantau & dipotong otomatis saat terjual. Cocok untuk produk fisik.'
+                                    : 'Stok tidak dipantau — produk selalu bisa dipesan tanpa batas. Cocok untuk jasa, konten digital, atau produk made-to-order.'}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setTrackStock(v => !v)}
+                            className={`relative shrink-0 w-12 h-6 rounded-full transition-colors ${trackStock ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                        >
+                            <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${trackStock ? 'translate-x-6' : 'translate-x-0'}`} />
+                        </button>
+                    </label>
+                    {!trackStock && (
+                        <p className="mt-2 text-xs text-blue-600 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2">
+                            Produk ini akan tampil dengan ikon ∞ di POS & inventori. Stok tidak akan dipotong saat checkout.
+                        </p>
+                    )}
+                </div>
+
                 {/* Variants */}
                 <div className="glass p-6 rounded-xl border border-border space-y-4 shadow-sm">
                     <div className="flex items-center justify-between border-b border-border pb-3">
@@ -477,12 +506,14 @@ export default function EditProductPage() {
                                             </label>
                                             <input type="number" min="0" value={v.hpp} onChange={e => updateVariant(index, 'hpp', e.target.value)} placeholder="Opsional" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm outline-none focus:border-primary" />
                                         </div>
+                                        {trackStock && (
                                         <div className="space-y-1">
                                             <label className="text-xs font-medium text-muted-foreground">
                                                 {pricingMode === 'AREA_BASED' ? 'Stok Bahan (m²)' : 'Stok'}
                                             </label>
                                             <input type="number" min="0" step={pricingMode === 'AREA_BASED' ? '0.01' : '1'} value={v.stock} onChange={e => updateVariant(index, 'stock', e.target.value)} className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm outline-none focus:border-primary" />
                                         </div>
+                                        )}
                                         <div className="space-y-1">
                                             <label className="text-xs font-medium text-muted-foreground">Size</label>
                                             <input type="text" value={v.size} onChange={e => updateVariant(index, 'size', e.target.value)} placeholder="M, L, XL" className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm outline-none focus:border-primary" />

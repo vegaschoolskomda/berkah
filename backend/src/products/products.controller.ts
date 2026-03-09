@@ -19,7 +19,7 @@ const imageStorage = diskStorage({
 });
 
 const imageFilter = (req: any, file: any, cb: any) => {
-    if (!file.originalname.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
+    if (!file.originalname.toLowerCase().match(/\.(jpg|jpeg|jfif|png|gif|webp)$/)) {
         return cb(new BadRequestException('Only image files are allowed!'), false);
     }
     cb(null, true);

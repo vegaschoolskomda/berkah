@@ -8,7 +8,7 @@
 
 **Solusi kasir modern untuk toko kelontong, percetakan digital, café, dan usaha kecil menengah lainnya.**
 
-> 🆕 **Update Maret 2026** — Ditambahkan: **Antrian Produksi** (antrian cetak per job, produk rakitan multi-tahap) & **Stok Opname** (hitung fisik stok via link operator). HPP kini mendukung input **Lebar × Tinggi m²** per baris bahan baku.
+> 🆕 **Update Maret 2026** — Ditambahkan: **Antrian Produksi** (antrian cetak per job, produk rakitan multi-tahap) & **Stok Opname** (hitung fisik stok via link operator). HPP kini mendukung input **Lebar × Tinggi m²** per baris bahan baku. Produk kini bisa diset **Tanpa Lacak Stok** (unlimited stock, tetap bisa diorder). Kasir area-based mendukung satuan **m², cm², dan menit** dengan perhitungan harga dan stok yang tepat per satuan.
 
 ---
 
@@ -28,6 +28,8 @@ Cukup buka browser, tap, dan transaksi selesai — tanpa perlu instalasi aplikas
 - Pilih metode pembayaran: **Tunai, Transfer Bank, QRIS**
 - Cetak **struk thermal** langsung dari browser
 - Kirim **tagihan (invoice)** ke WhatsApp pelanggan hanya dengan satu klik
+- Produk **Area-Based** mendukung tiga satuan: **meter (m²)**, **sentimeter (cm²)**, dan **menit** — harga dan stok dihitung otomatis sesuai satuan yang dipilih
+- Produk dengan **Tanpa Lacak Stok** tetap bisa diorder tanpa batas (tampil ∞)
 
 ### 💳 2. Pembayaran DP (Down Payment) & Pelunasan Piutang
 - Kasir bisa memilih **Bayar Lunas** atau **Bayar DP (uang muka)**
@@ -36,9 +38,10 @@ Cukup buka browser, tap, dan transaksi selesai — tanpa perlu instalasi aplikas
 - Setiap pelunasan otomatis masuk ke laporan arus kas
 
 ### 📦 3. Manajemen Produk & Stok
-- Tambah, edit, hapus produk dengan **foto produk**
+- Tambah, edit, hapus produk dengan **foto produk** (JPG, PNG, WEBP, JFIF)
 - Dukung produk dengan **varian** (ukuran, warna, dll)
-- Mode harga khusus untuk **Digital Printing** — harga dihitung per meter persegi (m²)
+- Mode harga khusus untuk **Digital Printing** — harga dihitung per area (m² atau cm²) atau per menit
+- Toggle **Lacak Stok**: aktifkan untuk produk yang butuh kontrol stok; nonaktifkan untuk produk/jasa unlimited (tampil simbol **∞** di kasir dan inventori, stok tidak pernah habis)
 - Pantau stok real-time, dengan notifikasi ketika stok menipis
 
 ### 🏦 4. Multi-Rekening Bank
@@ -609,6 +612,10 @@ Pos-Web-Application/
 - [x] Antrian Produksi — pencarian pelanggan, detail invoice, badge kategori bahan
 - [x] Stok Opname — link operator, blind count, review & konfirmasi stok
 - [x] HPP Calculator — input Lebar × Tinggi m² per baris bahan baku (auto-hitung luas)
+- [x] Produk "Tanpa Lacak Stok" — unlimited stock, tetap bisa diorder, tampil ∞ di kasir & inventori
+- [x] Kasir Area-Based multi-satuan — m², cm², dan menit dengan harga & stok per satuan yang benar
+- [x] Upload gambar produk mendukung format JFIF dan nama file kapital (JPG, JPEG)
+- [x] HPP: sync kategori produk dari database inventori (bukan hardcoded)
 - [ ] Mode offline (PWA)
 - [ ] Notifikasi stok menipis otomatis
 - [ ] Fitur loyalty point pelanggan

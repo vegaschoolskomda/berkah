@@ -166,7 +166,7 @@ export default function POSPage() {
     };
 
     const handleProductClick = (product: any, variant: any) => {
-        if (Number(variant.stock) <= 0) return;
+        if (product.trackStock !== false && Number(variant.stock) <= 0) return;
         if (product.pricingMode === 'AREA_BASED') {
             openAreaModalFresh(product, variant);
         } else {
@@ -179,16 +179,15 @@ export default function POSPage() {
         const h = areaModal.unitType === 'menit' ? 1 : Number(areaModal.heightCm); // height is irrelevant for 1D units like menit
         if (!w || w <= 0 || (areaModal.unitType !== 'menit' && (!h || h <= 0))) return;
 
-        let areaM2 = 0;
-        if (areaModal.unitType === 'm') areaM2 = w * h;
-        else if (areaModal.unitType === 'cm') areaM2 = (w * h) / 10000;
-        else if (areaModal.unitType === 'menit') areaM2 = w;
+        // areaForStock: always m² for stock comparison (independent of price unit)
+        let areaForStock = 0;
+        if (areaModal.unitType === 'm') areaForStock = w * h;
+        else if (areaModal.unitType === 'cm') areaForStock = (w * h) / 10000;
+        else if (areaModal.unitType === 'menit') areaForStock = w;
 
-        // Note: For custom 1D/cm units, "stock area limit" check might become technically ambiguous depending on business logic,
-        // but since stock is tracked in standard product quantity usually, we'll keep the naive validation here.
         const stockM2 = Number(areaModal.variant?.stock || 0);
-        if (areaM2 > stockM2) {
-            alert(`Stok bahan tidak cukup! Tersedia: ${stockM2.toFixed(2)} unit, dibutuhkan: ${areaM2.toFixed(2)} unit`);
+        if (areaModal.product?.trackStock !== false && areaForStock > stockM2) {
+            alert(`Stok bahan tidak cukup! Tersedia: ${stockM2.toFixed(2)} m², dibutuhkan: ${areaForStock.toFixed(2)} m²`);
             return;
         }
         const note = areaModal.note.trim() || undefined;
@@ -295,13 +294,23 @@ export default function POSPage() {
         const h = areaModal.unitType === 'menit' ? 1 : (Number(areaModal.heightCm) || 0);
         if (w <= 0 || (areaModal.unitType !== 'menit' && h <= 0)) return null;
 
-        let areaM2 = 0;
-        if (areaModal.unitType === 'm') areaM2 = w * h;
-        else if (areaModal.unitType === 'cm') areaM2 = (w * h) / 10000;
-        else if (areaModal.unitType === 'menit') areaM2 = w;
+        // priceMultiplier: raw area in input unit (matches how price is stored per product)
+        // areaForStock: always m² (for stock comparison)
+        let priceMultiplier = 0;
+        let areaForStock = 0;
+        if (areaModal.unitType === 'm') {
+            priceMultiplier = w * h;
+            areaForStock = w * h;
+        } else if (areaModal.unitType === 'cm') {
+            priceMultiplier = w * h;              // price per cm²
+            areaForStock = (w * h) / 10000;       // convert to m² for stock check
+        } else if (areaModal.unitType === 'menit') {
+            priceMultiplier = w;
+            areaForStock = w;
+        }
 
-        const pricePerM2 = Number(areaModal.variant?.price || 0);
-        return { areaM2, computedPrice: areaM2 * pricePerM2, pricePerM2 };
+        const unitPrice = Number(areaModal.variant?.price || 0);
+        return { priceMultiplier, areaForStock, computedPrice: priceMultiplier * unitPrice, unitPrice };
     }, [areaModal.widthCm, areaModal.heightCm, areaModal.unitType, areaModal.variant, areaModal.open]);
 
     // Count AREA_BASED lines per variant for the badge
@@ -352,9 +361,9 @@ export default function POSPage() {
                                     const imgSrc = v.variantImageUrl || productImages[0] || p.imageUrl;
 
                                     return (
-                                        <div key={v.id} onClick={() => Number(v.stock) > 0 && handleProductClick(p, v)}
+                                        <div key={v.id} onClick={() => (p.trackStock === false || Number(v.stock) > 0) && handleProductClick(p, v)}
                                             className={`bg-card border rounded-xl p-4 transition-all group relative select-none
-                                                ${Number(v.stock) > 0 ? 'cursor-pointer hover:border-primary/50 hover:shadow-md active:scale-[0.97]' : 'opacity-50 cursor-not-allowed grayscale'}
+                                                ${(p.trackStock === false || Number(v.stock) > 0) ? 'cursor-pointer hover:border-primary/50 hover:shadow-md active:scale-[0.97]' : 'opacity-50 cursor-not-allowed grayscale'}
                                                 ${isInCart ? 'border-primary/60 ring-1 ring-primary/30' : 'border-border'}`}
                                         >
                                             {/* m² badge */}
@@ -386,13 +395,13 @@ export default function POSPage() {
                                                     Rp {Number(v.price || 0).toLocaleString('id-ID')}
                                                     {isAreaBased && <span className="text-xs font-normal text-muted-foreground">/m²</span>}
                                                 </p>
-                                                <p className={`text-xs font-medium ${Number(v.stock) < 10 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                                                    {v.stock}{isAreaBased ? 'm²' : ''}
+                                                <p className={`text-xs font-medium ${p.trackStock === false ? 'text-blue-500' : Number(v.stock) < 10 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                                                    {p.trackStock === false ? '∞' : `${v.stock}${isAreaBased ? 'm²' : ''}`}
                                                 </p>
                                             </div>
 
                                             {/* + button — visible on hover (all product types) */}
-                                            {Number(v.stock) > 0 && (
+                                            {(p.trackStock === false || Number(v.stock) > 0) && (
                                                 <div className="absolute bottom-3 right-3 w-7 h-7 bg-primary text-primary-foreground rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-lg scale-90 group-hover:scale-100">
                                                     <Plus className="w-4 h-4" />
                                                 </div>
@@ -474,7 +483,9 @@ export default function POSPage() {
                                                         <Ruler className="w-3 h-3" />
                                                         {item.unitType === 'menit'
                                                             ? `${item.widthCm} unit`
-                                                            : `${item.widthCm}×${item.heightCm} ${item.unitType || 'm'} = ${item.areaM2?.toLocaleString('id-ID')} unit`}
+                                                            : item.unitType === 'cm'
+                                                            ? `${item.widthCm}×${item.heightCm} cm = ${Math.round(item.areaM2 || 0).toLocaleString('id-ID')} cm²`
+                                                            : `${item.widthCm}×${item.heightCm} m = ${item.areaM2?.toLocaleString('id-ID')} m²`}
                                                     </div>
                                                     <button onClick={() => openAreaModalEdit(item.lineId, item)}
                                                         className="p-1 text-muted-foreground hover:text-primary transition-colors rounded" title="Ubah dimensi">
@@ -613,11 +624,23 @@ export default function POSPage() {
                                 <div className="bg-primary/5 border border-primary/20 rounded-xl p-4 space-y-1.5">
                                     <div className="flex justify-between text-sm">
                                         <span className="text-muted-foreground">{areaModal.unitType === 'menit' ? 'Total Nilai' : 'Luas cetak'}</span>
-                                        <span className="font-bold">{areaPreview.areaM2.toLocaleString('id-ID')} {areaModal.unitType === 'menit' ? 'unit' : (areaModal.unitType === 'cm' ? 'm²' : 'm²')}</span>
+                                        <span className="font-bold">
+                                            {areaModal.unitType === 'menit'
+                                                ? `${areaPreview.priceMultiplier.toLocaleString('id-ID')} unit`
+                                                : areaModal.unitType === 'cm'
+                                                ? `${Math.round(areaPreview.priceMultiplier).toLocaleString('id-ID')} cm²`
+                                                : `${areaPreview.priceMultiplier.toLocaleString('id-ID')} m²`}
+                                        </span>
                                     </div>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-muted-foreground">Harga Dasar</span>
-                                        <span className="font-medium">Rp {areaPreview.pricePerM2.toLocaleString('id-ID')}</span>
+                                        <span className="font-medium">
+                                            {areaModal.unitType === 'cm'
+                                                ? `Rp ${areaPreview.unitPrice.toLocaleString('id-ID')} /cm²`
+                                                : areaModal.unitType === 'menit'
+                                                ? `Rp ${areaPreview.unitPrice.toLocaleString('id-ID')} /unit`
+                                                : `Rp ${areaPreview.unitPrice.toLocaleString('id-ID')} /m²`}
+                                        </span>
                                     </div>
                                     <div className="flex justify-between border-t border-primary/20 pt-1.5">
                                         <span className="font-semibold">Total</span>

@@ -98,6 +98,7 @@ model Product {
   pricePerUnit       Decimal?    @map("price_per_unit") @db.Decimal(15, 2)
   requiresProduction Boolean     @default(false) @map("requires_production")
   hasAssemblyStage   Boolean     @default(false) @map("has_assembly_stage")
+  trackStock         Boolean     @default(true)  @map("track_stock")
   createdAt          DateTime?   @default(now()) @map("created_at")
   updatedAt          DateTime?   @default(now()) @updatedAt @map("updated_at")
 

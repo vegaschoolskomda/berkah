@@ -206,6 +206,8 @@ export default function HppCalculatorPage() {
 
     // For handling product modal registration
     const [showRegisterProductModal, setShowRegisterProductModal] = useState(false);
+    const [isSavingWorksheet, setIsSavingWorksheet] = useState(false);
+    const [isSavingProduct, setIsSavingProduct] = useState(false);
 
     // Image upload ref
     const imageFileRef = useRef<HTMLInputElement>(null);
@@ -294,6 +296,8 @@ export default function HppCalculatorPage() {
 
     const handleSaveWorksheet = async () => {
         if (!productName) return alert("Beri nama Worksheet/Resep terlebih dahulu!");
+        if (isSavingWorksheet) return;
+        setIsSavingWorksheet(true);
 
         const payload = {
             productName, targetVolume, targetMargin,
@@ -326,6 +330,8 @@ export default function HppCalculatorPage() {
         } catch (error) {
             console.error(error);
             alert("Gagal menyimpan resep");
+        } finally {
+            setIsSavingWorksheet(false);
         }
     };
 
@@ -356,17 +362,17 @@ export default function HppCalculatorPage() {
     const handleSaveAsProduct = async () => {
         if (!productName) return alert("Nama produk wajib diisi sebelum disimpan ke stok!");
         if (!hasCalculated) return alert("Lakukan kalkulasi HPP terlebih dahulu!");
+        if (isSavingProduct) return;
+        setIsSavingProduct(true);
 
-        // Find category by name (productCategory state holds a name-slug), or null if not set
-        const matchedCat = dbCategories.find((c: any) =>
-            c.name.toLowerCase() === productCategory.toLowerCase() || c.name === productCategory);
-        const categoryId = matchedCat?.id;
-        if (!categoryId) return alert(`Kategori "${productCategory || '(belum dipilih)'}" tidak ditemukan di database. Silakan pilih kategori yang ada atau buat kategori di Pengaturan.`);
+        // productCategory stores the category ID directly (from DB categories select)
+        const categoryId = productCategory ? parseInt(productCategory) : null;
+        if (!categoryId) { setIsSavingProduct(false); return alert(`Pilih kategori produk terlebih dahulu. Pastikan kategori sudah dibuat di Manajemen Stok.`); }
 
         // Use first unit or find 'pcs'
         const matchedUnit = dbUnits.find((u: any) => u.name === 'pcs') || dbUnits[0];
         const unitId = matchedUnit?.id;
-        if (!unitId) return alert("Tidak ada satuan (unit) yang terdaftar di database. Tambahkan unit terlebih dahulu.");
+        if (!unitId) { setIsSavingProduct(false); return alert("Tidak ada satuan (unit) yang terdaftar di database. Tambahkan unit terlebih dahulu."); }
 
         // Calculate the price based on selected tier or use Custom Price
         const priceTierMap: Record<string, number> = {
@@ -447,6 +453,8 @@ export default function HppCalculatorPage() {
         } catch (error: any) {
             console.error(error);
             alert(`Gagal menyimpan produk: ${error?.response?.data?.message || error.message || 'Terjadi kesalahan'}`);
+        } finally {
+            setIsSavingProduct(false);
         }
     };
 
@@ -604,8 +612,8 @@ export default function HppCalculatorPage() {
                         )}
 
                         <div className="flex items-center gap-1.5 ml-auto">
-                            <button onClick={handleSaveWorksheet} title="Simpan Worksheet" className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white hover:bg-blue-600 rounded-[6px] border border-blue-500 transition-colors text-xs font-bold">
-                                <Save className="w-3.5 h-3.5" /> Simpan
+                            <button onClick={handleSaveWorksheet} disabled={isSavingWorksheet} title="Simpan Worksheet" className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-500 text-white hover:bg-blue-600 rounded-[6px] border border-blue-500 transition-colors text-xs font-bold disabled:opacity-60">
+                                {isSavingWorksheet ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Simpan
                             </button>
                             <button onClick={resetWorksheet} title="Buat Worksheet Baru" className="flex items-center gap-1.5 px-2.5 py-1.5 bg-green-50 text-green-700 hover:bg-green-100 rounded-[6px] border border-green-200 transition-colors text-xs font-semibold" aria-label="Baru">
                                 <Plus className="w-3.5 h-3.5" /> Baru
@@ -640,12 +648,9 @@ export default function HppCalculatorPage() {
                                             <select value={productCategory} onChange={(e) => setProductCategory(e.target.value)}
                                                 className="w-full appearance-none bg-muted border border-border rounded-[10px] pl-3.5 pr-8 py-2.5 text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-foreground cursor-pointer">
                                                 <option value="">-- Pilih Kategori --</option>
-                                                <option value="makanan">Makanan</option>
-                                                <option value="minuman">Minuman</option>
-                                                <option value="merchandise">Merchandise</option>
-                                                <option value="cetak">Cetak / Print</option>
-                                                <option value="jasa">Jasa</option>
-                                                <option value="lainnya">Lainnya</option>
+                                                {dbCategories.map((c: any) => (
+                                                    <option key={c.id} value={String(c.id)}>{c.name}</option>
+                                                ))}
                                             </select>
                                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                                         </div>
@@ -1186,8 +1191,9 @@ export default function HppCalculatorPage() {
 
                                         <button
                                             onClick={handleSaveAsProduct}
-                                            className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold text-[13px] py-3 rounded-[10px] shadow-sm transition-all">
-                                            <ShoppingBag className="w-4 h-4" /> Simpan Perhitungan &amp; Jadikan Produk
+                                            disabled={isSavingProduct}
+                                            className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold text-[13px] py-3 rounded-[10px] shadow-sm transition-all disabled:opacity-60">
+                                            {isSavingProduct ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingBag className="w-4 h-4" />} {isSavingProduct ? 'Menyimpan...' : 'Simpan Perhitungan & Jadikan Produk'}
                                         </button>
                                         <button
                                             onClick={resetWorksheet}

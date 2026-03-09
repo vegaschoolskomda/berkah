@@ -58,6 +58,7 @@ export class TransactionsService {
                 let areaCm2: number | null = null;
 
                 const requiresProduction = (variant.product as any).requiresProduction === true;
+                const trackStock = (variant.product as any).trackStock !== false; // default true
                 console.log(`[PRODUKSI DEBUG] variant=${variant.id} product="${variant.product.name}" requiresProduction=${(variant.product as any).requiresProduction} (bool=${requiresProduction})`);
 
                 if (pricingMode === 'AREA_BASED') {
@@ -68,19 +69,31 @@ export class TransactionsService {
                     widthCm = item.widthCm;
                     heightCm = item.heightCm || 1;
 
+                    // priceMultiplier: raw area in input unit (for price calculation)
+                    // areaM2: always in m² (for stock deduction & movement logging)
+                    let priceMultiplier = 0;
                     let areaM2 = 0;
-                    if (item.unitType === 'm') areaM2 = widthCm * heightCm;
-                    else if (item.unitType === 'cm') areaM2 = (widthCm * heightCm) / 10000;
-                    else if (item.unitType === 'menit') areaM2 = widthCm;
-                    else areaM2 = (widthCm * heightCm) / 10000; // fallback to cm
+                    if (item.unitType === 'm') {
+                        priceMultiplier = widthCm * heightCm;
+                        areaM2 = widthCm * heightCm;
+                    } else if (item.unitType === 'cm') {
+                        priceMultiplier = widthCm * heightCm;         // price per cm²
+                        areaM2 = (widthCm * heightCm) / 10000;        // convert to m² for stock
+                    } else if (item.unitType === 'menit') {
+                        priceMultiplier = widthCm;
+                        areaM2 = widthCm;
+                    } else {
+                        priceMultiplier = (widthCm * heightCm) / 10000;
+                        areaM2 = (widthCm * heightCm) / 10000;
+                    }
 
                     areaCm2 = areaM2 * 10000;
 
-                    const pricePerM2 = Number(variant.price);
-                    lineTotal = areaM2 * pricePerM2;
+                    const unitPrice = Number(variant.price);
+                    lineTotal = priceMultiplier * unitPrice;
 
-                    if (!requiresProduction) {
-                        // Only deduct stock for non-production items (normal area-based)
+                    if (!requiresProduction && trackStock) {
+                        // Only deduct stock for non-production items that have stock tracking
                         const currentStock = Number(variant.stock);
                         if (currentStock < areaM2) {
                             throw new BadRequestException(
@@ -141,21 +154,23 @@ export class TransactionsService {
 
                 } else {
                     // Standard UNIT mode
-                    if (variant.stock < item.quantity) {
-                        throw new BadRequestException(`Stok tidak cukup untuk ${variant.product.name}`);
-                    }
-                    await tx.productVariant.update({
-                        where: { id: variant.id },
-                        data: { stock: variant.stock - item.quantity }
-                    });
-                    await tx.stockMovement.create({
-                        data: {
-                            productVariantId: variant.id,
-                            type: 'OUT',
-                            quantity: item.quantity,
-                            reason: `Penjualan (Checkout)`
+                    if (trackStock) {
+                        if (variant.stock < item.quantity) {
+                            throw new BadRequestException(`Stok tidak cukup untuk ${variant.product.name}`);
                         }
-                    });
+                        await tx.productVariant.update({
+                            where: { id: variant.id },
+                            data: { stock: variant.stock - item.quantity }
+                        });
+                        await tx.stockMovement.create({
+                            data: {
+                                productVariantId: variant.id,
+                                type: 'OUT',
+                                quantity: item.quantity,
+                                reason: `Penjualan (Checkout)`
+                            }
+                        });
+                    }
                     lineTotal = Number(variant.price) * item.quantity;
                     transactionItemsData.push({
                         productVariantId: variant.id,

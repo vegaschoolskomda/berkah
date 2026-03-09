@@ -13,6 +13,7 @@ export interface CartItem {
     pricePerUnit: number;        // base rate (price/unit or price/m²)
     qty: number;                 // for AREA_BASED always 1; dimensions define the amount
     stock: number;
+    trackStock: boolean;         // false = unlimited stock, no deduction
     pricingMode: 'UNIT' | 'AREA_BASED';
     note?: string;               // operator note: design name, finishing type, custom text, etc.
     // AREA_BASED only
@@ -41,14 +42,18 @@ interface CartState {
     grandTotal: () => number;
 }
 
-function computeAreaPrice(width: number, height: number, pricePerUnit: number, unitType: 'm' | 'cm' | 'menit') {
-    let multiplier = 0;
-    if (unitType === 'm') multiplier = width * height;           // p x l in meters
-    else if (unitType === 'cm') multiplier = (width * height) / 10000; // p x l in cm -> convert to m2
-    else if (unitType === 'menit') multiplier = width;           // 1D (duration or amount)
+function computeAreaPrice(width: number, height: number, unitPrice: number, unitType: 'm' | 'cm' | 'menit') {
+    // priceMultiplier: raw area in input unit — matches how price is set per product
+    //   m    → price per m²,  multiplier = w × h (m²)
+    //   cm   → price per cm², multiplier = w × h (cm²), no conversion
+    //   menit→ price per unit, multiplier = w
+    let priceMultiplier = 0;
+    if (unitType === 'm') priceMultiplier = width * height;
+    else if (unitType === 'cm') priceMultiplier = width * height; // raw cm², price is per cm²
+    else if (unitType === 'menit') priceMultiplier = width;
 
-    const price = multiplier * pricePerUnit;
-    return { areaM2: multiplier, price }; // We store the 'multiplier' in areaM2 for convenience
+    const price = priceMultiplier * unitPrice;
+    return { areaM2: priceMultiplier, price };
 }
 
 export const useCartStore = create<CartState>((set, get) => ({
@@ -80,6 +85,7 @@ export const useCartStore = create<CartState>((set, get) => ({
                         pricePerUnit,
                         qty: 1,
                         stock: Number(variant.stock),
+                        trackStock: product.trackStock !== false,
                         pricingMode: 'AREA_BASED',
                         note,
                         unitType,
@@ -92,9 +98,10 @@ export const useCartStore = create<CartState>((set, get) => ({
 
             // UNIT mode — merge by productVariantId
             const lineId = String(variant.id);
+            const trackStock = product.trackStock !== false;
             const existing = state.items.find(i => i.lineId === lineId);
             if (existing) {
-                if (existing.qty >= Number(variant.stock)) return state;
+                if (trackStock && existing.qty >= Number(variant.stock)) return state;
                 return {
                     items: state.items.map(i =>
                         i.lineId === lineId ? { ...i, qty: i.qty + 1 } : i
@@ -112,6 +119,7 @@ export const useCartStore = create<CartState>((set, get) => ({
                     pricePerUnit,
                     qty: 1,
                     stock: Number(variant.stock),
+                    trackStock,
                     pricingMode: 'UNIT'
                 }]
             };
@@ -127,7 +135,7 @@ export const useCartStore = create<CartState>((set, get) => ({
             items: state.items.map(i => {
                 if (i.lineId !== lineId || i.pricingMode === 'AREA_BASED') return i;
                 const newQty = i.qty + delta;
-                if (newQty <= 0 || newQty > i.stock) return i;
+                if (newQty <= 0 || (i.trackStock !== false && newQty > i.stock)) return i;
                 return { ...i, qty: newQty };
             })
         }));

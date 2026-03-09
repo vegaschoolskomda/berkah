@@ -99,7 +99,7 @@ export default function InventoryPage() {
             const price = Number(variant.price);
             if (filterMinPrice && price < Number(filterMinPrice)) return false;
             if (filterMaxPrice && price > Number(filterMaxPrice)) return false;
-            if (filterMinStock && variant.stock < Number(filterMinStock)) return false;
+            if (filterMinStock && product.trackStock !== false && variant.stock < Number(filterMinStock)) return false;
             return true;
         });
     }, [products, searchText, filterSkuVariant, filterCategory, filterType, filterMinPrice, filterMaxPrice, filterMinStock]);
@@ -286,9 +286,18 @@ export default function InventoryPage() {
                                             </div>
                                             {/* Stock */}
                                             <div className="shrink-0 text-right">
-                                                <p className={`text-lg font-bold leading-none ${variant.stock < 10 ? 'text-destructive' : 'text-foreground'}`}>{variant.stock}</p>
-                                                <p className="text-[10px] text-muted-foreground mt-0.5">stok</p>
-                                                {variant.stock < 10 && <span className="text-[10px] text-destructive font-medium">Menipis</span>}
+                                                {product.trackStock === false ? (
+                                                    <>
+                                                        <p className="text-lg font-bold leading-none text-blue-500">∞</p>
+                                                        <p className="text-[10px] text-blue-400 mt-0.5">tak terbatas</p>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <p className={`text-lg font-bold leading-none ${variant.stock < 10 ? 'text-destructive' : 'text-foreground'}`}>{variant.stock}</p>
+                                                        <p className="text-[10px] text-muted-foreground mt-0.5">stok</p>
+                                                        {variant.stock < 10 && <span className="text-[10px] text-destructive font-medium">Menipis</span>}
+                                                    </>
+                                                )}
                                             </div>
                                         </div>
 
@@ -433,9 +442,15 @@ export default function InventoryPage() {
                                             </td>
                                             <td className="px-5 py-4 whitespace-nowrap text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <span className={`text-sm font-medium ${variant.stock < 10 ? 'text-destructive' : 'text-foreground'}`}>{variant.stock}</span>
-                                                    {variant.stock < 10 && (
-                                                        <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">Menipis</span>
+                                                    {product.trackStock === false ? (
+                                                        <span className="text-sm font-bold text-blue-500">∞</span>
+                                                    ) : (
+                                                        <>
+                                                            <span className={`text-sm font-medium ${variant.stock < 10 ? 'text-destructive' : 'text-foreground'}`}>{variant.stock}</span>
+                                                            {variant.stock < 10 && (
+                                                                <span className="inline-flex items-center rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">Menipis</span>
+                                                            )}
+                                                        </>
                                                     )}
                                                 </div>
                                             </td>

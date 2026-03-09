@@ -56,7 +56,7 @@ const fmtShort = (n: number) => {
 };
 
 // --- Edit Modal ---
-function EditModal({ entry, onClose, onSave }: { entry: CashflowEntry; onClose: () => void; onSave: (id: number, data: any) => void }) {
+function EditModal({ entry, onClose, onSave, isPending }: { entry: CashflowEntry; onClose: () => void; onSave: (id: number, data: any) => void; isPending?: boolean }) {
     const [category, setCategory] = useState(entry.category);
     const [amount, setAmount] = useState(parseFloat(entry.amount).toString());
     const [note, setNote] = useState(entry.note ?? '');
@@ -92,7 +92,7 @@ function EditModal({ entry, onClose, onSave }: { entry: CashflowEntry; onClose: 
                     </div>
                     <div className="pt-4 flex justify-end gap-3">
                         <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground border border-input hover:bg-muted/50 transition-colors">Batal</button>
-                        <button type="submit" className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors">Simpan</button>
+                        <button type="submit" disabled={isPending} className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50">{isPending ? 'Menyimpan...' : 'Simpan'}</button>
                     </div>
                 </form>
             </div>
@@ -465,6 +465,7 @@ export default function CashflowPage() {
                     entry={editEntry}
                     onClose={() => setEditEntry(null)}
                     onSave={(id, data) => updateMutation.mutate({ id, data })}
+                    isPending={updateMutation.isPending}
                 />
             )}
 
