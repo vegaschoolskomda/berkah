@@ -8,7 +8,7 @@ import {
     Calculator, ArrowRight, Loader2, Save, X, Database
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getHppWorksheets, createHppWorksheet, updateHppWorksheet, deleteHppWorksheet, getProducts, createProduct, getCategories, getUnits, uploadProductImage, uploadProductImages } from "@/lib/api";
+import { getHppWorksheets, createHppWorksheet, updateHppWorksheet, deleteHppWorksheet, getProducts, createProduct, getCategories, getUnits, uploadProductImage, uploadProductImages, addProductVariant, updateProductVariant } from "@/lib/api";
 
 function CustomNameInput({ value, onChange, onSwitchToStock }: { value: string; onChange: (val: string) => void; onSwitchToStock: () => void }) {
     const [local, setLocal] = useState(value);
@@ -208,6 +208,18 @@ export default function HppCalculatorPage() {
     const [showRegisterProductModal, setShowRegisterProductModal] = useState(false);
     const [isSavingWorksheet, setIsSavingWorksheet] = useState(false);
     const [isSavingProduct, setIsSavingProduct] = useState(false);
+
+    // Add variant to existing product
+    const [showAddVariantModal, setShowAddVariantModal] = useState(false);
+    const [addVariantProductId, setAddVariantProductId] = useState<number | null>(null);
+    const [addVariantName, setAddVariantName] = useState("");
+    const [isSavingAddVariant, setIsSavingAddVariant] = useState(false);
+
+    // Update HPP of existing variant
+    const [showUpdateHppModal, setShowUpdateHppModal] = useState(false);
+    const [updateHppProductId, setUpdateHppProductId] = useState<number | null>(null);
+    const [updateHppVariantId, setUpdateHppVariantId] = useState<number | null>(null);
+    const [isSavingUpdateHpp, setIsSavingUpdateHpp] = useState(false);
 
     // Image upload ref
     const imageFileRef = useRef<HTMLInputElement>(null);
@@ -455,6 +467,73 @@ export default function HppCalculatorPage() {
             alert(`Gagal menyimpan produk: ${error?.response?.data?.message || error.message || 'Terjadi kesalahan'}`);
         } finally {
             setIsSavingProduct(false);
+        }
+    };
+
+    const handleAddVariantToExistingProduct = async () => {
+        if (!addVariantProductId) return alert("Pilih produk terlebih dahulu!");
+        if (!hasCalculated) return alert("Lakukan kalkulasi HPP terlebih dahulu!");
+        if (isSavingAddVariant) return;
+        setIsSavingAddVariant(true);
+
+        const product = dbProducts.find((p: any) => p.id === addVariantProductId);
+        if (!product) { setIsSavingAddVariant(false); return alert("Produk tidak ditemukan."); }
+
+        const variantLabel = addVariantName.trim() || productName.trim();
+        const initials = variantLabel.split(/\s+/).map((w: string) => w[0] || '').join('').toUpperCase().substring(0, 5);
+        const rand = Math.floor(1000 + Math.random() * 9000);
+        const sku = `HPP-${initials}-${rand}`;
+
+        const priceTierMap: Record<string, number> = {
+            kompetitif: targetMargin > 15 ? targetMargin - 15 : 5,
+            standar: targetMargin,
+            premium: targetMargin + 20,
+        };
+        const margin = priceTierMap[selectedTier] ?? targetMargin;
+        const sellingPrice = customSellingPrice !== null && customSellingPrice > 0
+            ? customSellingPrice
+            : (hppPerPcs > 0 ? Math.round(hppPerPcs / (1 - margin / 100)) : 0);
+
+        try {
+            await addProductVariant(addVariantProductId, {
+                sku,
+                variantName: variantLabel,
+                price: sellingPrice,
+                hpp: hppPerPcs,
+                stock: 0,
+            });
+            alert(`Varian "${variantLabel}" berhasil ditambahkan ke produk "${product.name}"!\nHarga: Rp ${sellingPrice.toLocaleString('id-ID')} | HPP: Rp ${Math.round(hppPerPcs).toLocaleString('id-ID')}`);
+            setShowAddVariantModal(false);
+            setAddVariantProductId(null);
+            setAddVariantName("");
+            loadInitialData();
+        } catch (error: any) {
+            alert(`Gagal menambahkan varian: ${error?.response?.data?.message || error.message || 'Terjadi kesalahan'}`);
+        } finally {
+            setIsSavingAddVariant(false);
+        }
+    };
+
+    const handleUpdateVariantHpp = async () => {
+        if (!updateHppVariantId) return alert("Pilih varian terlebih dahulu!");
+        if (!hasCalculated) return alert("Lakukan kalkulasi HPP terlebih dahulu!");
+        if (isSavingUpdateHpp) return;
+        setIsSavingUpdateHpp(true);
+
+        try {
+            await updateProductVariant(updateHppVariantId, { hpp: hppPerPcs });
+            const product = dbProducts.find((p: any) => p.id === updateHppProductId);
+            const variant = product?.variants?.find((v: any) => v.id === updateHppVariantId);
+            const label = variant ? (product.name + (variant.variantName ? ` – ${variant.variantName}` : '')) : 'Varian';
+            alert(`HPP "${label}" berhasil diperbarui menjadi Rp ${Math.round(hppPerPcs).toLocaleString('id-ID')}`);
+            setShowUpdateHppModal(false);
+            setUpdateHppProductId(null);
+            setUpdateHppVariantId(null);
+            loadInitialData();
+        } catch (error: any) {
+            alert(`Gagal memperbarui HPP: ${error?.response?.data?.message || error.message || 'Terjadi kesalahan'}`);
+        } finally {
+            setIsSavingUpdateHpp(false);
         }
     };
 
@@ -1195,6 +1274,18 @@ export default function HppCalculatorPage() {
                                             className="w-full flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white font-bold text-[13px] py-3 rounded-[10px] shadow-sm transition-all disabled:opacity-60">
                                             {isSavingProduct ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShoppingBag className="w-4 h-4" />} {isSavingProduct ? 'Menyimpan...' : 'Simpan Perhitungan & Jadikan Produk'}
                                         </button>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <button
+                                                onClick={() => { setShowAddVariantModal(true); setAddVariantProductId(null); setAddVariantName(""); }}
+                                                className="flex items-center justify-center gap-1.5 bg-blue-500 hover:bg-blue-600 text-white font-semibold text-[12px] py-2.5 rounded-[10px] shadow-sm transition-all">
+                                                <Plus className="w-3.5 h-3.5" /> Tambah ke Produk Ada
+                                            </button>
+                                            <button
+                                                onClick={() => { setShowUpdateHppModal(true); setUpdateHppProductId(null); setUpdateHppVariantId(null); }}
+                                                className="flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold text-[12px] py-2.5 rounded-[10px] shadow-sm transition-all">
+                                                <Save className="w-3.5 h-3.5" /> Perbarui HPP Varian
+                                            </button>
+                                        </div>
                                         <button
                                             onClick={resetWorksheet}
                                             className="w-full flex items-center justify-center gap-2 bg-muted hover:bg-muted/80 text-muted-foreground font-semibold text-[13px] py-2.5 rounded-[10px] border border-border transition-all">
@@ -1275,6 +1366,112 @@ export default function HppCalculatorPage() {
                     </div>
                 </div>
             )}
+
+            {/* Modal: Tambah Varian ke Produk yang Ada */}
+            {showAddVariantModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+                    <div className="bg-card w-full max-w-sm rounded-[16px] border border-border shadow-2xl p-5">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-base flex items-center gap-2"><Plus className="w-4 h-4 text-blue-500" /> Tambah Varian ke Produk yang Ada</h3>
+                            <button onClick={() => setShowAddVariantModal(false)} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+                        </div>
+                        <div className="bg-blue-50 border border-blue-200 rounded-[10px] p-3 mb-4 space-y-1">
+                            <p className="text-xs text-blue-800">HPP yang akan dipakai: <b>Rp {Math.round(hppPerPcs).toLocaleString('id-ID')}</b></p>
+                        </div>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="block text-xs font-semibold text-foreground mb-1.5">Pilih Produk</label>
+                                <select
+                                    value={addVariantProductId ?? ""}
+                                    onChange={(e) => setAddVariantProductId(e.target.value ? Number(e.target.value) : null)}
+                                    className="w-full bg-background border border-border rounded-[8px] px-3 py-2 text-sm outline-none focus:border-blue-400">
+                                    <option value="">-- Pilih produk --</option>
+                                    {dbProducts.map((p: any) => (
+                                        <option key={p.id} value={p.id}>{p.name} ({p.variants?.length ?? 0} varian)</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-semibold text-foreground mb-1.5">Nama Varian <span className="text-muted-foreground font-normal">(mis: F340, 2m, Glossy)</span></label>
+                                <input
+                                    type="text"
+                                    value={addVariantName}
+                                    onChange={(e) => setAddVariantName(e.target.value)}
+                                    placeholder={productName || "Nama varian baru..."}
+                                    className="w-full bg-background border border-border rounded-[8px] px-3 py-2 text-sm outline-none focus:border-blue-400"
+                                />
+                            </div>
+                        </div>
+                        <div className="flex gap-2 justify-end pt-4">
+                            <button onClick={() => setShowAddVariantModal(false)} className="px-4 py-2 bg-muted text-foreground text-sm font-semibold rounded-[8px]">Batal</button>
+                            <button
+                                onClick={handleAddVariantToExistingProduct}
+                                disabled={isSavingAddVariant || !addVariantProductId}
+                                className="px-5 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-bold rounded-[8px] transition-all disabled:opacity-60 flex items-center gap-2">
+                                {isSavingAddVariant ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                                {isSavingAddVariant ? 'Menyimpan...' : 'Tambah Varian'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: Perbarui HPP Varian */}
+            {showUpdateHppModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">
+                    <div className="bg-card w-full max-w-sm rounded-[16px] border border-border shadow-2xl p-5">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="font-bold text-base flex items-center gap-2"><Save className="w-4 h-4 text-amber-500" /> Perbarui HPP Varian</h3>
+                            <button onClick={() => setShowUpdateHppModal(false)} className="text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
+                        </div>
+                        <div className="bg-amber-50 border border-amber-200 rounded-[10px] p-3 mb-4">
+                            <p className="text-xs text-amber-800">HPP baru yang akan diterapkan: <b>Rp {Math.round(hppPerPcs).toLocaleString('id-ID')}</b></p>
+                            <p className="text-xs text-amber-600 mt-0.5">Harga jual tidak akan berubah, hanya nilai HPP.</p>
+                        </div>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="block text-xs font-semibold text-foreground mb-1.5">Pilih Produk</label>
+                                <select
+                                    value={updateHppProductId ?? ""}
+                                    onChange={(e) => { setUpdateHppProductId(e.target.value ? Number(e.target.value) : null); setUpdateHppVariantId(null); }}
+                                    className="w-full bg-background border border-border rounded-[8px] px-3 py-2 text-sm outline-none focus:border-amber-400">
+                                    <option value="">-- Pilih produk --</option>
+                                    {dbProducts.map((p: any) => (
+                                        <option key={p.id} value={p.id}>{p.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            {updateHppProductId && (
+                                <div>
+                                    <label className="block text-xs font-semibold text-foreground mb-1.5">Pilih Varian</label>
+                                    <select
+                                        value={updateHppVariantId ?? ""}
+                                        onChange={(e) => setUpdateHppVariantId(e.target.value ? Number(e.target.value) : null)}
+                                        className="w-full bg-background border border-border rounded-[8px] px-3 py-2 text-sm outline-none focus:border-amber-400">
+                                        <option value="">-- Pilih varian --</option>
+                                        {dbProducts.find((p: any) => p.id === updateHppProductId)?.variants?.map((v: any) => (
+                                            <option key={v.id} value={v.id}>
+                                                {v.variantName || 'Default'} — HPP saat ini: Rp {Number(v.hpp || 0).toLocaleString('id-ID')}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex gap-2 justify-end pt-4">
+                            <button onClick={() => setShowUpdateHppModal(false)} className="px-4 py-2 bg-muted text-foreground text-sm font-semibold rounded-[8px]">Batal</button>
+                            <button
+                                onClick={handleUpdateVariantHpp}
+                                disabled={isSavingUpdateHpp || !updateHppVariantId}
+                                className="px-5 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-[8px] transition-all disabled:opacity-60 flex items-center gap-2">
+                                {isSavingUpdateHpp ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                                {isSavingUpdateHpp ? 'Memperbarui...' : 'Perbarui HPP'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div >
     );
 }
