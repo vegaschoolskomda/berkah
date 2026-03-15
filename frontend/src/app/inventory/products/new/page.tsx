@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getCategories, getUnits, createProduct, uploadProductImages, uploadVariantImage, getSettings, getProducts } from '@/lib/api';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Plus, Trash2, Save, Upload, Image as ImageIcon, FlaskConical, X, Ruler, Package, Link2, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Upload, Image as ImageIcon, FlaskConical, X, Ruler, Package, Link2, RefreshCw, ChevronDown, ChevronUp, Layers, Zap } from 'lucide-react';
 import Link from 'next/link';
 
 // Auto-generate SKU helper
@@ -21,6 +21,22 @@ function generateSku(productName: string, index: number): string {
     return `${prefix}-${num}`;
 }
 
+interface PriceTierForm {
+    tierName: string;
+    minQty: string;
+    maxQty: string;
+    price: string;
+}
+
+interface VariantIngredientForm {
+    name: string;
+    quantity: string;
+    unit: string;
+    price: string;
+    isServiceCost: boolean;
+    rawMaterialVariantId?: number | null;
+}
+
 interface VariantForm {
     sku: string;
     variantName: string;
@@ -35,6 +51,10 @@ interface VariantForm {
     isRollMaterial: boolean;
     rollPhysicalWidth: string;
     rollEffectivePrintWidth: string;
+    priceTiers: PriceTierForm[];
+    variantIngredients: VariantIngredientForm[];
+    showPriceTiers: boolean;
+    showVariantIngredients: boolean;
 }
 
 interface IngredientForm {
@@ -48,6 +68,8 @@ const defaultVariant = (): VariantForm => ({
     sku: '', variantName: '', price: '', hpp: '', stock: '', size: '', color: '',
     imageFile: null, imagePreview: null, skuManuallyEdited: false,
     isRollMaterial: false, rollPhysicalWidth: '', rollEffectivePrintWidth: '',
+    priceTiers: [], variantIngredients: [],
+    showPriceTiers: false, showVariantIngredients: false,
 });
 
 export default function AddProductPage() {
@@ -183,6 +205,83 @@ export default function AddProductPage() {
         });
     };
 
+    // ── Price Tiers ──────────────────────────────────────────────────────────
+    const addPriceTier = (variantIndex: number) => {
+        setVariants(prev => {
+            const next = [...prev];
+            next[variantIndex] = {
+                ...next[variantIndex],
+                priceTiers: [...next[variantIndex].priceTiers, { tierName: '', minQty: '', maxQty: '', price: '' }]
+            };
+            return next;
+        });
+    };
+    const removePriceTier = (variantIndex: number, tierIndex: number) => {
+        setVariants(prev => {
+            const next = [...prev];
+            next[variantIndex] = {
+                ...next[variantIndex],
+                priceTiers: next[variantIndex].priceTiers.filter((_, i) => i !== tierIndex)
+            };
+            return next;
+        });
+    };
+    const updatePriceTier = (variantIndex: number, tierIndex: number, field: keyof PriceTierForm, value: string) => {
+        setVariants(prev => {
+            const next = [...prev];
+            const tiers = [...next[variantIndex].priceTiers];
+            tiers[tierIndex] = { ...tiers[tierIndex], [field]: value };
+            next[variantIndex] = { ...next[variantIndex], priceTiers: tiers };
+            return next;
+        });
+    };
+
+    // ── Variant Ingredients ──────────────────────────────────────────────────
+    const addVariantIngredient = (variantIndex: number) => {
+        setVariants(prev => {
+            const next = [...prev];
+            next[variantIndex] = {
+                ...next[variantIndex],
+                variantIngredients: [...next[variantIndex].variantIngredients,
+                    { name: '', quantity: '', unit: '', price: '', isServiceCost: false, rawMaterialVariantId: null }]
+            };
+            return next;
+        });
+    };
+    const removeVariantIngredient = (variantIndex: number, ingIndex: number) => {
+        setVariants(prev => {
+            const next = [...prev];
+            next[variantIndex] = {
+                ...next[variantIndex],
+                variantIngredients: next[variantIndex].variantIngredients.filter((_, i) => i !== ingIndex)
+            };
+            return next;
+        });
+    };
+    const updateVariantIngredient = (variantIndex: number, ingIndex: number, field: keyof VariantIngredientForm, value: any) => {
+        setVariants(prev => {
+            const next = [...prev];
+            const ings = [...next[variantIndex].variantIngredients];
+            ings[ingIndex] = { ...ings[ingIndex], [field]: value };
+            next[variantIndex] = { ...next[variantIndex], variantIngredients: ings };
+            return next;
+        });
+    };
+    const handleVariantIngredientStockLink = (variantIndex: number, ingIndex: number, variantId: number | null) => {
+        const linked = variantId ? allVariants.find((v: any) => v.id === variantId) : null;
+        setVariants(prev => {
+            const next = [...prev];
+            const ings = [...next[variantIndex].variantIngredients];
+            ings[ingIndex] = {
+                ...ings[ingIndex],
+                rawMaterialVariantId: variantId,
+                name: !ings[ingIndex].name && linked ? linked.label.split(' [')[0] : ings[ingIndex].name,
+            };
+            next[variantIndex] = { ...next[variantIndex], variantIngredients: ings };
+            return next;
+        });
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         const payload: any = {
@@ -206,6 +305,20 @@ export default function AddProductPage() {
                 isRollMaterial: v.isRollMaterial,
                 rollPhysicalWidth: v.isRollMaterial && v.rollPhysicalWidth ? Number(v.rollPhysicalWidth) : undefined,
                 rollEffectivePrintWidth: v.isRollMaterial && v.rollEffectivePrintWidth ? Number(v.rollEffectivePrintWidth) : undefined,
+                priceTiers: v.priceTiers.filter(t => t.minQty && t.price).map(t => ({
+                    tierName: t.tierName || undefined,
+                    minQty: Number(t.minQty),
+                    maxQty: t.maxQty ? Number(t.maxQty) : null,
+                    price: Number(t.price),
+                })),
+                variantIngredients: v.variantIngredients.filter(i => i.name.trim() && i.quantity).map(i => ({
+                    name: i.name,
+                    quantity: Number(i.quantity),
+                    unit: i.unit,
+                    price: Number(i.price) || 0,
+                    isServiceCost: i.isServiceCost,
+                    rawMaterialVariantId: i.rawMaterialVariantId || null,
+                })),
             })),
             ingredients: showIngredients ? ingredients
                 .filter(ing => ing.name.trim())
@@ -530,7 +643,7 @@ export default function AddProductPage() {
                                     )}
                                 </div>
 
-                                {/* Roll Material fields — di luar flex agar tampil full-width */}
+                                {/* Roll Material fields */}
                                 <div className="border-t border-border/50 pt-3 space-y-3">
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <input type="checkbox" checked={v.isRollMaterial} onChange={e => updateVariant(index, 'isRollMaterial', e.target.checked)}
@@ -554,6 +667,105 @@ export default function AddProductPage() {
                                                     className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm outline-none focus:border-primary font-mono" />
                                                 <p className="text-xs text-muted-foreground">Area cetak aktual (biasanya lebar fisik - 0.1~0.2m)</p>
                                             </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Harga Bertingkat (Price Tiers) */}
+                                {pricingMode === 'UNIT' && (
+                                <div className="border-t border-border/50 pt-3 space-y-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => updateVariant(index, 'showPriceTiers', !v.showPriceTiers)}
+                                        className="flex items-center justify-between w-full text-sm font-medium text-left"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <Layers className="w-4 h-4 text-orange-500" />
+                                            Harga Bertingkat
+                                            {v.priceTiers.length > 0 && (
+                                                <span className="text-xs bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 px-1.5 py-0.5 rounded font-medium">{v.priceTiers.length} tier</span>
+                                            )}
+                                        </span>
+                                        {v.showPriceTiers ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                                    </button>
+                                    {v.showPriceTiers && (
+                                        <div className="space-y-2 pt-1">
+                                            <p className="text-xs text-muted-foreground">Sistem otomatis memilih harga berdasarkan jumlah qty saat checkout. Isi harga jual di atas sebagai harga default jika qty tidak cocok dengan tier manapun.</p>
+                                            {v.priceTiers.map((tier, ti) => (
+                                                <div key={ti} className="flex gap-2 items-center bg-orange-50/50 dark:bg-orange-950/20 border border-orange-200/50 dark:border-orange-800/30 rounded-lg p-2">
+                                                    <input type="text" value={tier.tierName} onChange={e => updatePriceTier(index, ti, 'tierName', e.target.value)} placeholder="Label (opsional)" className="w-28 px-2 py-1.5 bg-background border border-border rounded text-xs outline-none focus:border-primary" />
+                                                    <input type="number" min="1" value={tier.minQty} onChange={e => updatePriceTier(index, ti, 'minQty', e.target.value)} placeholder="Min Qty" className="w-20 px-2 py-1.5 bg-background border border-border rounded text-xs outline-none focus:border-primary" />
+                                                    <span className="text-xs text-muted-foreground shrink-0">—</span>
+                                                    <input type="number" min="1" value={tier.maxQty} onChange={e => updatePriceTier(index, ti, 'maxQty', e.target.value)} placeholder="Max (kosong = ∞)" className="w-24 px-2 py-1.5 bg-background border border-border rounded text-xs outline-none focus:border-primary" />
+                                                    <input type="number" min="0" value={tier.price} onChange={e => updatePriceTier(index, ti, 'price', e.target.value)} placeholder="Harga/unit (Rp)" className="flex-1 px-2 py-1.5 bg-background border border-border rounded text-xs outline-none focus:border-primary" />
+                                                    <button type="button" onClick={() => removePriceTier(index, ti)} className="p-1 text-destructive/60 hover:text-destructive hover:bg-destructive/10 rounded transition-colors">
+                                                        <Trash2 className="w-3.5 h-3.5" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            <button type="button" onClick={() => addPriceTier(index)} className="flex items-center gap-1 text-xs text-orange-600 hover:text-orange-700 font-medium transition-colors">
+                                                <Plus className="w-3.5 h-3.5" /> Tambah Tier Harga
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                                )}
+
+                                {/* Ingredient Varian (Variant-Level BOM) */}
+                                <div className="border-t border-border/50 pt-3 space-y-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => updateVariant(index, 'showVariantIngredients', !v.showVariantIngredients)}
+                                        className="flex items-center justify-between w-full text-sm font-medium text-left"
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <Zap className="w-4 h-4 text-purple-500" />
+                                            Ingredient Varian
+                                            {v.variantIngredients.length > 0 && (
+                                                <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-1.5 py-0.5 rounded font-medium">{v.variantIngredients.length} item</span>
+                                            )}
+                                        </span>
+                                        {v.showVariantIngredients ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+                                    </button>
+                                    {v.showVariantIngredients && (
+                                        <div className="space-y-2 pt-1">
+                                            <p className="text-xs text-muted-foreground">Bahan atau biaya yang spesifik untuk varian ini (berbeda tiap varian). Contoh: biaya klik 1 sisi vs 2 sisi, tinta warna vs hitam-putih.</p>
+                                            {v.variantIngredients.map((ing, ii) => (
+                                                <div key={ii} className="space-y-2 bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200/50 dark:border-purple-800/30 rounded-lg p-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <Link2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                                        <select
+                                                            value={ing.rawMaterialVariantId ?? ''}
+                                                            onChange={e => handleVariantIngredientStockLink(index, ii, e.target.value ? Number(e.target.value) : null)}
+                                                            className="flex-1 px-2 py-1.5 bg-background border border-border rounded text-xs outline-none focus:border-primary"
+                                                        >
+                                                            <option value="">— Biaya manual / tidak dari stok —</option>
+                                                            {allVariants.map((av: any) => (
+                                                                <option key={av.id} value={av.id}>{av.label}</option>
+                                                            ))}
+                                                        </select>
+                                                        <label className="flex items-center gap-1 text-xs shrink-0 cursor-pointer">
+                                                            <input type="checkbox" checked={ing.isServiceCost} onChange={e => updateVariantIngredient(index, ii, 'isServiceCost', e.target.checked)} className="w-3.5 h-3.5 accent-purple-600" />
+                                                            <span className="text-muted-foreground">Biaya Jasa</span>
+                                                        </label>
+                                                        <button type="button" onClick={() => removeVariantIngredient(index, ii)} className="p-1 text-destructive/60 hover:text-destructive hover:bg-destructive/10 rounded transition-colors">
+                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </div>
+                                                    <div className="flex gap-2">
+                                                        <input type="text" value={ing.name} onChange={e => updateVariantIngredient(index, ii, 'name', e.target.value)} placeholder="Nama (contoh: Biaya Klik BW)" className="flex-1 px-2 py-1.5 bg-background border border-border rounded text-xs outline-none focus:border-primary" />
+                                                        <input type="number" min="0" step="any" value={ing.quantity} onChange={e => updateVariantIngredient(index, ii, 'quantity', e.target.value)} placeholder="Qty" className="w-16 px-2 py-1.5 bg-background border border-border rounded text-xs outline-none focus:border-primary" />
+                                                        <input type="text" value={ing.unit} onChange={e => updateVariantIngredient(index, ii, 'unit', e.target.value)} placeholder="Unit" className="w-16 px-2 py-1.5 bg-background border border-border rounded text-xs outline-none focus:border-primary" />
+                                                        <input type="number" min="0" value={ing.price} onChange={e => updateVariantIngredient(index, ii, 'price', e.target.value)} placeholder="Harga/unit" className="w-28 px-2 py-1.5 bg-background border border-border rounded text-xs outline-none focus:border-primary" />
+                                                    </div>
+                                                    {ing.isServiceCost && (
+                                                        <p className="text-xs text-purple-600 dark:text-purple-400">Biaya Jasa — tidak memotong stok inventori, hanya masuk ke perhitungan HPP.</p>
+                                                    )}
+                                                </div>
+                                            ))}
+                                            <button type="button" onClick={() => addVariantIngredient(index)} className="flex items-center gap-1 text-xs text-purple-600 hover:text-purple-700 font-medium transition-colors">
+                                                <Plus className="w-3.5 h-3.5" /> Tambah Ingredient Varian
+                                            </button>
                                         </div>
                                     )}
                                 </div>

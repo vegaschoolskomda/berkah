@@ -8,7 +8,7 @@ import {
     Calculator, ArrowRight, Loader2, Save, X, Database
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getHppWorksheets, createHppWorksheet, updateHppWorksheet, deleteHppWorksheet, getProducts, createProduct, getCategories, getUnits, uploadProductImage, uploadProductImages, addProductVariant, updateProductVariant } from "@/lib/api";
+import { getHppWorksheets, createHppWorksheet, updateHppWorksheet, deleteHppWorksheet, getProducts, createProduct, getCategories, getUnits, uploadProductImage, uploadProductImages, addProductVariant, updateProductVariant, applyHppToVariant } from "@/lib/api";
 
 function CustomNameInput({ value, onChange, onSwitchToStock }: { value: string; onChange: (val: string) => void; onSwitchToStock: () => void }) {
     const [local, setLocal] = useState(value);
@@ -221,6 +221,10 @@ export default function HppCalculatorPage() {
     const [updateHppVariantId, setUpdateHppVariantId] = useState<number | null>(null);
     const [isSavingUpdateHpp, setIsSavingUpdateHpp] = useState(false);
 
+    // Link worksheet to variant & apply HPP
+    const [linkedVariantId, setLinkedVariantId] = useState<number | null>(null);
+    const [isApplyingHpp, setIsApplyingHpp] = useState(false);
+
     // Image upload ref
     const imageFileRef = useRef<HTMLInputElement>(null);
     const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -266,7 +270,8 @@ export default function HppCalculatorPage() {
         setActiveWorksheetId(ws.id);
         setProductName(ws.productName);
         setTargetVolume(ws.targetVolume);
-        setTargetMargin(Number(ws.targetMargin)); // db has decimal type
+        setTargetMargin(Number(ws.targetMargin));
+        setLinkedVariantId(ws.productVariantId || null);
 
         // Map Variable Costs from DB backwards
         setVariableCosts(ws.variableCosts.map((vc: any) => {
@@ -304,6 +309,7 @@ export default function HppCalculatorPage() {
         setHasCalculated(false);
         setCustomSellingPrice(null);
         setSellingPricingMode('UNIT');
+        setLinkedVariantId(null);
     };
 
     const handleSaveWorksheet = async () => {
@@ -313,6 +319,7 @@ export default function HppCalculatorPage() {
 
         const payload = {
             productName, targetVolume, targetMargin,
+            productVariantId: linkedVariantId || null,
             variableCosts: variableCosts
                 .filter(vc => vc.productVariantId || (vc.name && vc.price > 0)) // Save both stock & custom rows
                 .map(vc => ({
@@ -344,6 +351,43 @@ export default function HppCalculatorPage() {
             alert("Gagal menyimpan resep");
         } finally {
             setIsSavingWorksheet(false);
+        }
+    };
+
+    const handleApplyHppToVariant = async () => {
+        if (!activeWorksheetId) return alert("Simpan worksheet terlebih dahulu sebelum menerapkan HPP.");
+        if (!linkedVariantId) return alert("Pilih varian tujuan terlebih dahulu.");
+        if (!hasCalculated) return alert("Lakukan kalkulasi HPP terlebih dahulu.");
+        if (hppPerPcs <= 0) return alert("HPP tidak valid.");
+        if (isApplyingHpp) return;
+
+        const confirm = window.confirm(
+            `Terapkan HPP Rp ${hppPerPcs.toLocaleString('id-ID', { maximumFractionDigits: 0 })}/unit ke varian yang dipilih?\n\nIni akan update field HPP varian tersebut.`
+        );
+        if (!confirm) return;
+
+        setIsApplyingHpp(true);
+        try {
+            // Update worksheet link dulu jika belum tersimpan
+            await updateHppWorksheet(activeWorksheetId, {
+                productName, targetVolume, targetMargin,
+                productVariantId: linkedVariantId,
+                variableCosts: variableCosts.filter(vc => vc.productVariantId || (vc.name && vc.price > 0)).map(vc => ({
+                    productVariantId: vc.productVariantId || null,
+                    customMaterialName: !vc.productVariantId ? vc.name : null,
+                    customPrice: !vc.productVariantId ? vc.price : null,
+                    usageAmount: vc.usageAmount,
+                    usageUnit: vc.usageUnit
+                })),
+                fixedCosts: fixedCosts.map(fc => ({ name: fc.name, amount: fc.amount }))
+            });
+            const result = await applyHppToVariant(activeWorksheetId, hppPerPcs);
+            alert(result.message || "HPP berhasil diterapkan ke varian!");
+            loadInitialData();
+        } catch (e: any) {
+            alert(e?.response?.data?.message || "Gagal menerapkan HPP.");
+        } finally {
+            setIsApplyingHpp(false);
         }
     };
 
@@ -734,6 +778,47 @@ export default function HppCalculatorPage() {
                                             <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                                         </div>
                                     </div>
+                                </div>
+
+                                {/* Link ke Varian & Apply HPP */}
+                                <div className="p-3 bg-purple-50/50 dark:bg-purple-950/20 border border-purple-200/60 dark:border-purple-800/40 rounded-[10px] space-y-2">
+                                    <label className="block text-[13px] font-semibold text-purple-700 dark:text-purple-400">Tautkan ke Varian Produk (opsional)</label>
+                                    <p className="text-xs text-muted-foreground">Pilih varian untuk menyimpan hasil HPP langsung ke field HPP varian tersebut.</p>
+                                    <div className="flex gap-2 items-center">
+                                        <div className="relative flex-1">
+                                            <select
+                                                value={linkedVariantId ?? ''}
+                                                onChange={e => setLinkedVariantId(e.target.value ? Number(e.target.value) : null)}
+                                                className="w-full appearance-none bg-background border border-border rounded-[8px] pl-3 pr-8 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-400/30 focus:border-purple-400 transition-all"
+                                            >
+                                                <option value="">— Pilih varian (opsional) —</option>
+                                                {dbProducts.flatMap((p: any) =>
+                                                    (p.variants || []).map((v: any) => (
+                                                        <option key={v.id} value={v.id}>
+                                                            {p.name}{v.variantName ? ` — ${v.variantName}` : ''} [{v.sku}]
+                                                        </option>
+                                                    ))
+                                                )}
+                                            </select>
+                                            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                                        </div>
+                                        {linkedVariantId && hasCalculated && activeWorksheetId && (
+                                            <button
+                                                type="button"
+                                                onClick={handleApplyHppToVariant}
+                                                disabled={isApplyingHpp}
+                                                className="flex items-center gap-1.5 px-3 py-2 bg-purple-600 text-white hover:bg-purple-700 rounded-[8px] text-xs font-bold transition-colors disabled:opacity-60 shrink-0"
+                                            >
+                                                {isApplyingHpp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Zap className="w-3.5 h-3.5" />}
+                                                Terapkan HPP
+                                            </button>
+                                        )}
+                                    </div>
+                                    {linkedVariantId && (
+                                        <p className="text-xs text-purple-600 dark:text-purple-400 font-medium">
+                                            Worksheet ini terhubung ke varian. HPP dihitung: Rp {hppPerPcs > 0 ? hppPerPcs.toLocaleString('id-ID', { maximumFractionDigits: 0 }) : '—'}/unit
+                                        </p>
+                                    )}
                                 </div>
 
                                 {/* Row 2: Gambar Produk (Opsional) */}

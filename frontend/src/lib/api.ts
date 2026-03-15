@@ -44,11 +44,34 @@ export const convertQuotationToInvoice = async (id: number) => (await api.post(`
 export const deleteInvoice = async (id: number) => (await api.delete(`/invoices/${id}`)).data;
 
 // HPP Calculator
-export const getHppWorksheets = async () => (await api.get('/hpp')).data;
+export const getHppWorksheets = async (variantId?: number) =>
+    (await api.get('/hpp', { params: variantId ? { variantId } : undefined })).data;
 export const getHppWorksheetById = async (id: number) => (await api.get(`/hpp/${id}`)).data;
+export const getHppWorksheetsByVariant = async (variantId: number) => (await api.get(`/hpp/by-variant/${variantId}`)).data;
 export const createHppWorksheet = async (data: any) => (await api.post('/hpp', data)).data;
 export const updateHppWorksheet = async (id: number, data: any) => (await api.patch(`/hpp/${id}`, data)).data;
+export const applyHppToVariant = async (worksheetId: number, hppPerUnit: number) =>
+    (await api.post(`/hpp/${worksheetId}/apply-to-variant`, { hppPerUnit })).data;
 export const deleteHppWorksheet = async (id: number) => (await api.delete(`/hpp/${id}`)).data;
+
+// Backup & Recovery
+export const getBackupGroups = async () => (await api.get('/backup/groups')).data;
+export const previewBackupFile = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return (await api.post('/backup/preview', formData, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
+};
+export const exportBackup = async (groups: string[]): Promise<Blob> => {
+    const res = await api.post('/backup/export', { groups }, { responseType: 'blob' });
+    return res.data;
+};
+export const restoreBackup = async (file: File, mode: 'skip' | 'overwrite', tables?: string[]) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('mode', mode);
+    if (tables && tables.length > 0) formData.append('tables', tables.join(','));
+    return (await api.post('/backup/restore', formData, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
+};
 
 // Products
 export const getProducts = async () => (await api.get('/products')).data;
@@ -86,13 +109,29 @@ export const uploadVariantImage = async (variantId: number, file: File) => {
     })).data;
 };
 
-// Ingredients
+// Ingredients (product-level)
 export const addIngredient = async (productId: number, data: { name: string; quantity: number; unit: string }) =>
     (await api.post(`/products/${productId}/ingredients`, data)).data;
 export const updateIngredient = async (productId: number, ingId: number, data: any) =>
     (await api.patch(`/products/${productId}/ingredients/${ingId}`, data)).data;
 export const deleteIngredient = async (productId: number, ingId: number) =>
     (await api.delete(`/products/${productId}/ingredients/${ingId}`)).data;
+
+// Variant Price Tiers
+export const getVariantPriceTiers = async (variantId: number) =>
+    (await api.get(`/products/variants/${variantId}/price-tiers`)).data;
+export const replaceVariantPriceTiers = async (variantId: number, tiers: any[]) =>
+    (await api.put(`/products/variants/${variantId}/price-tiers`, { tiers })).data;
+export const deleteVariantPriceTier = async (variantId: number, tierId: number) =>
+    (await api.delete(`/products/variants/${variantId}/price-tiers/${tierId}`)).data;
+
+// Variant Ingredients (variant-level BOM)
+export const getVariantIngredients = async (variantId: number) =>
+    (await api.get(`/products/variants/${variantId}/variant-ingredients`)).data;
+export const replaceVariantIngredients = async (variantId: number, ingredients: any[]) =>
+    (await api.put(`/products/variants/${variantId}/variant-ingredients`, { ingredients })).data;
+export const deleteVariantIngredient = async (variantId: number, ingId: number) =>
+    (await api.delete(`/products/variants/${variantId}/variant-ingredients/${ingId}`)).data;
 
 // Stock Movements
 export const getStockMovements = async () => (await api.get('/stock-movements')).data;

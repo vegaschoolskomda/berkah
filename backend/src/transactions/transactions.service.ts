@@ -42,9 +42,9 @@ export class TransactionsService {
                 const variant = await tx.productVariant.findUnique({
                     where: { id: item.productVariantId },
                     include: {
-                        product: {
-                            include: { ingredients: true }
-                        }
+                        product: { include: { ingredients: true } },
+                        priceTiers: { orderBy: { minQty: 'asc' } },
+                        variantIngredients: true
                     }
                 });
 
@@ -52,14 +52,32 @@ export class TransactionsService {
 
                 const pricingMode = (variant.product as any).pricingMode || 'UNIT';
                 let lineTotal = 0;
-                let stockToDeduct = item.quantity;
                 let widthCm: number | null = null;
                 let heightCm: number | null = null;
                 let areaCm2: number | null = null;
 
                 const requiresProduction = (variant.product as any).requiresProduction === true;
-                const trackStock = (variant.product as any).trackStock !== false; // default true
+                const trackStock = (variant.product as any).trackStock !== false;
                 console.log(`[PRODUKSI DEBUG] variant=${variant.id} product="${variant.product.name}" requiresProduction=${(variant.product as any).requiresProduction} (bool=${requiresProduction})`);
+
+                // Resolve tier price for UNIT mode
+                const priceTiers: any[] = (variant as any).priceTiers || [];
+                let resolvedPrice = Number(variant.price);
+                if (pricingMode === 'UNIT' && priceTiers.length > 0) {
+                    const matchedTier = priceTiers.find((t: any) =>
+                        item.quantity >= t.minQty && (t.maxQty === null || item.quantity <= t.maxQty)
+                    );
+                    if (matchedTier) resolvedPrice = Number(matchedTier.price);
+                }
+
+                // Calculate HPP from variant ingredients if defined; fallback to variant.hpp
+                const variantIngredients: any[] = (variant as any).variantIngredients || [];
+                let resolvedHpp = Number(variant.hpp);
+                if (variantIngredients.length > 0) {
+                    resolvedHpp = variantIngredients.reduce((sum: number, ing: any) => {
+                        return sum + Number(ing.price) * Number(ing.quantity);
+                    }, 0);
+                }
 
                 if (pricingMode === 'AREA_BASED') {
                     // Area-based calculation depending on unitType
@@ -89,11 +107,9 @@ export class TransactionsService {
 
                     areaCm2 = areaM2 * 10000;
 
-                    const unitPrice = Number(variant.price);
-                    lineTotal = priceMultiplier * unitPrice;
+                    lineTotal = priceMultiplier * resolvedPrice;
 
                     if (!requiresProduction && trackStock) {
-                        // Only deduct stock for non-production items that have stock tracking
                         const currentStock = Number(variant.stock);
                         if (currentStock < areaM2) {
                             throw new BadRequestException(
@@ -113,13 +129,11 @@ export class TransactionsService {
                             }
                         });
 
-                        // Deduct BOM / Raw Materials for AREA_BASED
+                        // Deduct product-level BOM (AREA_BASED)
                         const ingredients = (variant.product as any).ingredients || [];
                         for (const ing of ingredients) {
                             if (ing.rawMaterialVariantId) {
-                                const rawVariant = await tx.productVariant.findUnique({
-                                    where: { id: ing.rawMaterialVariantId }
-                                });
+                                const rawVariant = await tx.productVariant.findUnique({ where: { id: ing.rawMaterialVariantId } });
                                 if (rawVariant) {
                                     const neededStock = Number(ing.quantity) * areaM2;
                                     await tx.productVariant.update({
@@ -131,20 +145,41 @@ export class TransactionsService {
                                             productVariantId: rawVariant.id,
                                             type: 'OUT',
                                             quantity: Math.ceil(neededStock * 100),
-                                            reason: `Terpotong oleh Penjualan Produk ${variant.product.name}`
+                                            reason: `Terpotong oleh Penjualan ${variant.product.name}`
+                                        }
+                                    });
+                                }
+                            }
+                        }
+
+                        // Deduct variant-level ingredients (AREA_BASED, non-service-cost only)
+                        for (const ing of variantIngredients) {
+                            if (ing.rawMaterialVariantId && !ing.isServiceCost) {
+                                const rawVariant = await tx.productVariant.findUnique({ where: { id: ing.rawMaterialVariantId } });
+                                if (rawVariant) {
+                                    const neededStock = Number(ing.quantity) * areaM2;
+                                    await tx.productVariant.update({
+                                        where: { id: rawVariant.id },
+                                        data: { stock: Math.floor((Number(rawVariant.stock) - neededStock) * 100) / 100 }
+                                    });
+                                    await tx.stockMovement.create({
+                                        data: {
+                                            productVariantId: rawVariant.id,
+                                            type: 'OUT',
+                                            quantity: Math.ceil(neededStock * 100),
+                                            reason: `Terpotong (varian) oleh Penjualan ${variant.product.name}`
                                         }
                                     });
                                 }
                             }
                         }
                     }
-                    // For requiresProduction items: skip stock deduction — handled at production time
 
                     transactionItemsData.push({
                         productVariantId: variant.id,
                         quantity: 1,
                         priceAtTime: lineTotal,
-                        hppAtTime: variant.hpp,
+                        hppAtTime: resolvedHpp,
                         widthCm,
                         heightCm,
                         areaCm2,
@@ -171,25 +206,23 @@ export class TransactionsService {
                             }
                         });
                     }
-                    lineTotal = Number(variant.price) * item.quantity;
+
+                    lineTotal = resolvedPrice * item.quantity;
                     transactionItemsData.push({
                         productVariantId: variant.id,
                         quantity: item.quantity,
-                        priceAtTime: variant.price,
-                        hppAtTime: variant.hpp,
+                        priceAtTime: resolvedPrice,
+                        hppAtTime: resolvedHpp,
                         note: item.note || null,
                         _requiresProduction: requiresProduction,
                     });
 
-                    // Deduct BOM / Raw Materials for UNIT based (using item.quantity as multiplier)
+                    // Deduct product-level BOM (UNIT)
                     const ingredients = (variant.product as any).ingredients || [];
                     for (const ing of ingredients) {
                         if (ing.rawMaterialVariantId) {
-                            const rawVariant = await tx.productVariant.findUnique({
-                                where: { id: ing.rawMaterialVariantId }
-                            });
+                            const rawVariant = await tx.productVariant.findUnique({ where: { id: ing.rawMaterialVariantId } });
                             if (rawVariant) {
-                                // For unit based, needed stock = ingredient.quantity * checkout quantity
                                 const neededStock = Number(ing.quantity) * item.quantity;
                                 await tx.productVariant.update({
                                     where: { id: rawVariant.id },
@@ -200,7 +233,29 @@ export class TransactionsService {
                                         productVariantId: rawVariant.id,
                                         type: 'OUT',
                                         quantity: Math.ceil(neededStock * 100),
-                                        reason: `Terpotong oleh Penjualan Produk ${variant.product.name}`
+                                        reason: `Terpotong oleh Penjualan ${variant.product.name}`
+                                    }
+                                });
+                            }
+                        }
+                    }
+
+                    // Deduct variant-level ingredients (UNIT, non-service-cost only)
+                    for (const ing of variantIngredients) {
+                        if (ing.rawMaterialVariantId && !ing.isServiceCost) {
+                            const rawVariant = await tx.productVariant.findUnique({ where: { id: ing.rawMaterialVariantId } });
+                            if (rawVariant) {
+                                const neededStock = Number(ing.quantity) * item.quantity;
+                                await tx.productVariant.update({
+                                    where: { id: rawVariant.id },
+                                    data: { stock: Math.floor((Number(rawVariant.stock) - neededStock) * 100) / 100 }
+                                });
+                                await tx.stockMovement.create({
+                                    data: {
+                                        productVariantId: rawVariant.id,
+                                        type: 'OUT',
+                                        quantity: Math.ceil(neededStock * 100),
+                                        reason: `Terpotong (varian) oleh Penjualan ${variant.product.name}`
                                     }
                                 });
                             }

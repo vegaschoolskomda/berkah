@@ -1,4 +1,4 @@
-import { Store, CreditCard, Users, Settings, MessageCircle, Building2, Paintbrush } from 'lucide-react';
+import { Store, CreditCard, Users, Settings, MessageCircle, Building2, Paintbrush, HardDrive } from 'lucide-react';
 import Link from 'next/link';
 
 const NAV_LINKS = [
@@ -8,6 +8,7 @@ const NAV_LINKS = [
     { href: '/settings/whatsapp',      icon: MessageCircle,  label: 'Bot WhatsApp' },
     { href: '/settings/bank-accounts', icon: Building2,      label: 'Rekening Bank' },
     { href: '/settings/login',         icon: Paintbrush,     label: 'Tampilan Login' },
+    { href: '/settings/backup',        icon: HardDrive,      label: 'Backup & Recovery' },
 ];
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {

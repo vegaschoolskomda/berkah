@@ -1,29 +1,58 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
+const variantInclude = {
+    priceTiers: { orderBy: { minQty: 'asc' as const } },
+    variantIngredients: {
+        include: { rawMaterialVariant: { include: { product: true } } },
+        orderBy: { id: 'asc' as const }
+    }
+};
+
 @Injectable()
 export class ProductsService {
     constructor(private prisma: PrismaService) { }
 
     async create(data: any) {
         const { variants, ingredients, ...productData } = data;
-        return this.prisma.product.create({
+
+        // Strip priceTiers & variantIngredients from variants before nested create
+        const variantsToCreate = (variants || []).map((v: any) => {
+            const { priceTiers, variantIngredients, ...variantData } = v;
+            return variantData;
+        });
+
+        const product = await this.prisma.product.create({
             data: {
                 ...productData,
-                variants: {
-                    create: variants || []
-                },
-                ingredients: {
-                    create: ingredients || []
-                }
+                variants: { create: variantsToCreate },
+                ingredients: { create: ingredients || [] }
             },
             include: {
                 category: true,
                 unit: true,
-                variants: true,
+                variants: { include: variantInclude },
                 ingredients: true
             }
         });
+
+        // Create priceTiers & variantIngredients per variant
+        for (let i = 0; i < (variants || []).length; i++) {
+            const v = variants[i];
+            const createdVariant = product.variants[i];
+            if (v.priceTiers?.length) {
+                await this.prisma.variantPriceTier.createMany({
+                    data: v.priceTiers.map((t: any) => ({ ...t, variantId: createdVariant.id }))
+                });
+            }
+            if (v.variantIngredients?.length) {
+                await this.prisma.variantIngredient.createMany({
+                    data: v.variantIngredients.map((ing: any) => ({ ...ing, variantId: createdVariant.id }))
+                });
+            }
+        }
+
+        return this.findOne(product.id);
     }
 
     async findAll() {
@@ -31,7 +60,7 @@ export class ProductsService {
             include: {
                 category: true,
                 unit: true,
-                variants: true,
+                variants: { include: variantInclude },
                 ingredients: true
             }
         });
@@ -43,7 +72,7 @@ export class ProductsService {
             include: {
                 category: true,
                 unit: true,
-                variants: true,
+                variants: { include: variantInclude },
                 ingredients: true
             }
         });
@@ -55,30 +84,49 @@ export class ProductsService {
         await this.findOne(id);
         const { variants, ingredients, ...productData } = data;
 
-        // Update basic product data
-        await this.prisma.product.update({
-            where: { id },
-            data: productData,
-        });
+        await this.prisma.product.update({ where: { id }, data: productData });
 
-        // Upsert variants if provided
         if (variants) {
             for (const v of variants) {
-                if (v.id) {
-                    const { id: variantId, ...variantData } = v;
-                    await this.prisma.productVariant.update({
-                        where: { id: variantId },
-                        data: variantData
-                    });
+                const { priceTiers, variantIngredients, id: variantId, ...variantData } = v;
+                let savedVariantId: number;
+
+                if (variantId) {
+                    await this.prisma.productVariant.update({ where: { id: variantId }, data: variantData });
+                    savedVariantId = variantId;
                 } else {
-                    await this.prisma.productVariant.create({
-                        data: { ...v, productId: id }
-                    });
+                    const created = await this.prisma.productVariant.create({ data: { ...variantData, productId: id } });
+                    savedVariantId = created.id;
+                }
+
+                // Replace price tiers if provided
+                if (priceTiers !== undefined) {
+                    await this.prisma.variantPriceTier.deleteMany({ where: { variantId: savedVariantId } });
+                    if (priceTiers.length > 0) {
+                        await this.prisma.variantPriceTier.createMany({
+                            data: priceTiers.map((t: any) => {
+                                const { id: _id, variantId: _vid, ...tierData } = t;
+                                return { ...tierData, variantId: savedVariantId };
+                            })
+                        });
+                    }
+                }
+
+                // Replace variant ingredients if provided
+                if (variantIngredients !== undefined) {
+                    await this.prisma.variantIngredient.deleteMany({ where: { variantId: savedVariantId } });
+                    if (variantIngredients.length > 0) {
+                        await this.prisma.variantIngredient.createMany({
+                            data: variantIngredients.map((ing: any) => {
+                                const { id: _id, variantId: _vid, rawMaterialVariant: _rm, ...ingData } = ing;
+                                return { ...ingData, variantId: savedVariantId };
+                            })
+                        });
+                    }
                 }
             }
         }
 
-        // Replace ingredients if provided
         if (ingredients !== undefined) {
             await this.prisma.ingredient.deleteMany({ where: { productId: id } });
             if (ingredients.length > 0) {
@@ -93,18 +141,12 @@ export class ProductsService {
 
     async updateImageUrl(id: number, imageUrl: string) {
         await this.findOne(id);
-        return this.prisma.product.update({
-            where: { id },
-            data: { imageUrl }
-        });
+        return this.prisma.product.update({ where: { id }, data: { imageUrl } });
     }
 
     async updateImageUrls(id: number, imageUrls: string[]) {
         await this.findOne(id);
-        return this.prisma.product.update({
-            where: { id },
-            data: { imageUrls: JSON.stringify(imageUrls) }
-        });
+        return this.prisma.product.update({ where: { id }, data: { imageUrls: JSON.stringify(imageUrls) } });
     }
 
     async remove(id: number) {
@@ -112,48 +154,113 @@ export class ProductsService {
         return this.prisma.product.delete({ where: { id } });
     }
 
-    // Variant management
+    // ── Variant management ──────────────────────────────────────────────────
+
     async addVariant(productId: number, variantData: any) {
         await this.findOne(productId);
-        return this.prisma.productVariant.create({
-            data: { ...variantData, productId }
+        const { priceTiers, variantIngredients, ...data } = variantData;
+        const variant = await this.prisma.productVariant.create({
+            data: { ...data, productId },
+            include: variantInclude
         });
+        if (priceTiers?.length) {
+            await this.prisma.variantPriceTier.createMany({
+                data: priceTiers.map((t: any) => ({ ...t, variantId: variant.id }))
+            });
+        }
+        if (variantIngredients?.length) {
+            await this.prisma.variantIngredient.createMany({
+                data: variantIngredients.map((ing: any) => ({ ...ing, variantId: variant.id }))
+            });
+        }
+        return this.prisma.productVariant.findUnique({ where: { id: variant.id }, include: variantInclude });
     }
 
     async updateVariant(variantId: number, variantData: any) {
-        return this.prisma.productVariant.update({
-            where: { id: variantId },
-            data: variantData
-        });
+        const { priceTiers, variantIngredients, ...data } = variantData;
+        await this.prisma.productVariant.update({ where: { id: variantId }, data });
+        if (priceTiers !== undefined) {
+            await this.replacePriceTiers(variantId, priceTiers);
+        }
+        if (variantIngredients !== undefined) {
+            await this.replaceVariantIngredients(variantId, variantIngredients);
+        }
+        return this.prisma.productVariant.findUnique({ where: { id: variantId }, include: variantInclude });
     }
 
     async updateVariantImageUrl(variantId: number, variantImageUrl: string) {
-        return this.prisma.productVariant.update({
-            where: { id: variantId },
-            data: { variantImageUrl }
-        });
+        return this.prisma.productVariant.update({ where: { id: variantId }, data: { variantImageUrl } });
     }
 
     async removeVariant(variantId: number) {
         return this.prisma.productVariant.delete({ where: { id: variantId } });
     }
 
-    // Ingredient management
+    // ── Product Ingredient management ───────────────────────────────────────
+
     async addIngredient(productId: number, ingredientData: any) {
         await this.findOne(productId);
-        return this.prisma.ingredient.create({
-            data: { ...ingredientData, productId }
-        });
+        return this.prisma.ingredient.create({ data: { ...ingredientData, productId } });
     }
 
     async updateIngredient(ingredientId: number, data: any) {
-        return this.prisma.ingredient.update({
-            where: { id: ingredientId },
-            data
-        });
+        return this.prisma.ingredient.update({ where: { id: ingredientId }, data });
     }
 
     async removeIngredient(ingredientId: number) {
         return this.prisma.ingredient.delete({ where: { id: ingredientId } });
+    }
+
+    // ── Variant Price Tiers ─────────────────────────────────────────────────
+
+    async getPriceTiers(variantId: number) {
+        return this.prisma.variantPriceTier.findMany({
+            where: { variantId },
+            orderBy: { minQty: 'asc' }
+        });
+    }
+
+    async replacePriceTiers(variantId: number, tiers: any[]) {
+        await this.prisma.variantPriceTier.deleteMany({ where: { variantId } });
+        if (tiers.length > 0) {
+            await this.prisma.variantPriceTier.createMany({
+                data: tiers.map((t: any) => {
+                    const { id: _id, variantId: _vid, ...tierData } = t;
+                    return { ...tierData, variantId };
+                })
+            });
+        }
+        return this.getPriceTiers(variantId);
+    }
+
+    async removePriceTier(tierId: number) {
+        return this.prisma.variantPriceTier.delete({ where: { id: tierId } });
+    }
+
+    // ── Variant Ingredients ─────────────────────────────────────────────────
+
+    async getVariantIngredients(variantId: number) {
+        return this.prisma.variantIngredient.findMany({
+            where: { variantId },
+            include: { rawMaterialVariant: { include: { product: true } } },
+            orderBy: { id: 'asc' }
+        });
+    }
+
+    async replaceVariantIngredients(variantId: number, ingredients: any[]) {
+        await this.prisma.variantIngredient.deleteMany({ where: { variantId } });
+        if (ingredients.length > 0) {
+            await this.prisma.variantIngredient.createMany({
+                data: ingredients.map((ing: any) => {
+                    const { id: _id, variantId: _vid, rawMaterialVariant: _rm, ...ingData } = ing;
+                    return { ...ingData, variantId };
+                })
+            });
+        }
+        return this.getVariantIngredients(variantId);
+    }
+
+    async removeVariantIngredient(ingredientId: number) {
+        return this.prisma.variantIngredient.delete({ where: { id: ingredientId } });
     }
 }
