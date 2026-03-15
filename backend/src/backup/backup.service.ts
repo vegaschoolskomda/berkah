@@ -1,12 +1,16 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import * as archiver from 'archiver';
-import * as AdmZip from 'adm-zip';
 import * as fs from 'fs';
 import * as path from 'path';
 
+// Gunakan require() agar tidak butuh @types/archiver & @types/adm-zip
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const archiver = require('archiver');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const AdmZip = require('adm-zip');
+
 // ─── Grup filter yang bisa dipilih user ────────────────────────────────────
-// PENTING: nama tabel harus sesuai dengan Prisma accessor (singular camelCase)
+// PENTING: nama harus sesuai Prisma accessor (singular camelCase)
 export const BACKUP_GROUPS = {
     master: {
         label: 'Master Data',
@@ -56,7 +60,7 @@ export const BACKUP_GROUPS = {
 
 export type BackupGroupKey = keyof typeof BACKUP_GROUPS;
 
-// Urutan restore — penting untuk FK integrity (singular camelCase = Prisma accessor)
+// Urutan restore — penting untuk FK integrity
 const RESTORE_ORDER = [
     'role', 'storeSettings', 'bankAccount', 'category', 'unit', 'branch', 'competitor',
     'user', 'customer', 'supplier',
@@ -84,9 +88,9 @@ export class BackupService {
         // ── 1. Kumpulkan data DB ───────────────────────────────────────────
         let tablesToExport: string[];
         if (selectedGroups === 'all') {
-            tablesToExport = Object.values(BACKUP_GROUPS).flatMap(g => g.tables);
+            tablesToExport = Object.values(BACKUP_GROUPS).flatMap(g => [...g.tables]);
         } else {
-            tablesToExport = selectedGroups.flatMap(g => BACKUP_GROUPS[g]?.tables ?? []);
+            tablesToExport = selectedGroups.flatMap(g => [...(BACKUP_GROUPS[g]?.tables ?? [])]);
         }
         tablesToExport = [...new Set(tablesToExport)];
 
@@ -118,7 +122,7 @@ export class BackupService {
 
         // ── 2. Buat ZIP ────────────────────────────────────────────────────
         return new Promise<Buffer>((resolve, reject) => {
-            const archive = archiver.default('zip', { zlib: { level: 6 } });
+            const archive = archiver('zip', { zlib: { level: 6 } });
             const chunks: Buffer[] = [];
 
             archive.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -137,7 +141,7 @@ export class BackupService {
         });
     }
 
-    // ── Preview Backup File (JSON atau ZIP) ─────────────────────────────────
+    // ── Preview Backup File JSON ─────────────────────────────────────────────
 
     parseBackupFile(content: string) {
         let parsed: any;
@@ -157,13 +161,16 @@ export class BackupService {
                 table,
                 count: rows.length,
             })),
+            imageCount: 0,
         };
     }
 
+    // ── Preview Backup ZIP ───────────────────────────────────────────────────
+
     parseBackupZip(fileBuffer: Buffer): { meta: any; preview: { table: string; count: number }[]; imageCount: number } {
-        let zip: AdmZip;
+        let zip: any;
         try {
-            zip = new (AdmZip as any)(fileBuffer);
+            zip = new AdmZip(fileBuffer);
         } catch {
             throw new BadRequestException('File ZIP tidak valid atau rusak.');
         }
@@ -184,8 +191,9 @@ export class BackupService {
             throw new BadRequestException('Format data.json tidak dikenali.');
         }
 
-        // Hitung file gambar di dalam ZIP
-        const imageEntries = zip.getEntries().filter(e => e.entryName.startsWith('uploads/') && !e.isDirectory);
+        const imageEntries: any[] = zip.getEntries().filter(
+            (e: any) => e.entryName.startsWith('uploads/') && !e.isDirectory
+        );
 
         return {
             meta: parsed.meta,
@@ -206,15 +214,15 @@ export class BackupService {
         selectedTables?: string[],
     ) {
         let jsonContent: string;
-        let zip: AdmZip | null = null;
+        let zip: any = null;
 
         if (isZip) {
             try {
-                zip = new (AdmZip as any)(fileBuffer);
+                zip = new AdmZip(fileBuffer);
             } catch {
                 throw new BadRequestException('File ZIP tidak valid atau rusak.');
             }
-            const dataEntry = (zip as AdmZip).getEntry('data.json');
+            const dataEntry = zip.getEntry('data.json');
             if (!dataEntry) throw new BadRequestException('File ZIP tidak mengandung data.json.');
             jsonContent = dataEntry.getData().toString('utf-8');
         } else {
@@ -234,7 +242,6 @@ export class BackupService {
 
         const backupData: Record<string, any[]> = parsed.data;
 
-        // Filter tabel yang akan direstore
         const tablesToRestore = selectedTables
             ? selectedTables.filter(t => backupData[t])
             : RESTORE_ORDER.filter(t => backupData[t] !== undefined);
@@ -291,7 +298,9 @@ export class BackupService {
         // ── Restore gambar dari ZIP ───────────────────────────────────────
         let imagesRestored = 0;
         if (zip) {
-            const imageEntries = zip.getEntries().filter(e => e.entryName.startsWith('uploads/') && !e.isDirectory);
+            const imageEntries: any[] = zip.getEntries().filter(
+                (e: any) => e.entryName.startsWith('uploads/') && !e.isDirectory
+            );
             if (imageEntries.length > 0) {
                 if (!fs.existsSync(UPLOADS_DIR)) {
                     fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -300,7 +309,6 @@ export class BackupService {
                     const filename = path.basename(entry.entryName);
                     if (!filename) continue;
                     const destPath = path.join(UPLOADS_DIR, filename);
-                    // Skip jika file sudah ada (mode skip) atau timpa (mode overwrite)
                     if (mode === 'skip' && fs.existsSync(destPath)) continue;
                     fs.writeFileSync(destPath, entry.getData());
                     imagesRestored++;
@@ -310,7 +318,9 @@ export class BackupService {
 
         const totalRestored = Object.values(result).reduce((s, r) => s + r.success, 0);
         const totalSkipped = Object.values(result).reduce((s, r) => s + r.skipped, 0);
-        const errors = Object.entries(result).filter(([, r]) => r.error).map(([t, r]) => `${t}: ${r.error}`);
+        const errors = Object.entries(result)
+            .filter(([, r]) => r.error)
+            .map(([t, r]) => `${t}: ${r.error}`);
 
         return {
             message: `Restore selesai. ${totalRestored} baris data berhasil, ${totalSkipped} dilewati, ${imagesRestored} gambar dipulihkan.`,
@@ -322,7 +332,7 @@ export class BackupService {
         };
     }
 
-    // Bersihkan fields yang tidak ada di schema (misal relasi nested)
+    // Bersihkan fields relasi nested sebelum insert
     private cleanRow(row: any): any {
         const cleaned: any = {};
         for (const [key, val] of Object.entries(row)) {
