@@ -12,6 +12,8 @@ interface BotConfig {
     allowedGroups: string[];
     reportGroupId: string | null;
     feedbackGroupId: string | null;
+    announcementChannelId: string | null;
+    broadcastGroupIds: string[];
 }
 
 @Injectable()
@@ -26,7 +28,9 @@ export class WhatsappService implements OnModuleInit {
     private botConfig: BotConfig = {
         allowedGroups: [],
         reportGroupId: process.env.WHATSAPP_REPORT_GROUP_ID || null,
-        feedbackGroupId: null
+        feedbackGroupId: null,
+        announcementChannelId: null,
+        broadcastGroupIds: [],
     };
 
     onModuleInit() {
@@ -170,6 +174,79 @@ export class WhatsappService implements OnModuleInit {
                             msg.reply(`Format salah.\nGunakan: !botadmin setfeedbackgroup [GROUP_ID]`);
                         }
                     }
+                    else if (command === '!botadmin listmygroups') {
+                        try {
+                            const chats = await this.client.getChats();
+                            const groups = chats.filter(c => c.isGroup);
+                            let res = `*📋 Grup yang Diikuti Bot (${groups.length}):*\n\n`;
+                            if (groups.length === 0) res += `- Bot belum bergabung di grup manapun.\n`;
+                            else groups.slice(0, 20).forEach((g, i) => res += `${i + 1}. *${g.name}*\n   ID: \`${g.id._serialized}\`\n`);
+                            if (groups.length > 20) res += `\n_...dan ${groups.length - 20} grup lainnya_`;
+                            msg.reply(res);
+                        } catch (e) {
+                            msg.reply('❌ Gagal mendapatkan daftar grup.');
+                        }
+                    }
+                    else if (command === '!botadmin addbroadcast') {
+                        const groupId = args[2];
+                        if (groupId && !this.botConfig.broadcastGroupIds.includes(groupId)) {
+                            this.botConfig.broadcastGroupIds.push(groupId);
+                            this.saveConfig();
+                            msg.reply(`✅ Grup ${groupId} ditambahkan ke daftar broadcast.`);
+                        } else {
+                            msg.reply(`Format salah atau grup sudah ada.\nGunakan: !botadmin addbroadcast [GROUP_ID]`);
+                        }
+                    }
+                    else if (command === '!botadmin removebroadcast') {
+                        const groupId = args[2];
+                        if (groupId) {
+                            this.botConfig.broadcastGroupIds = this.botConfig.broadcastGroupIds.filter(id => id !== groupId);
+                            this.saveConfig();
+                            msg.reply(`✅ Grup ${groupId} dihapus dari daftar broadcast.`);
+                        } else {
+                            msg.reply(`Format salah.\nGunakan: !botadmin removebroadcast [GROUP_ID]`);
+                        }
+                    }
+                    else if (command === '!botadmin listbroadcast') {
+                        let res = `*📢 Daftar Grup Broadcast:*\n\n`;
+                        if (this.botConfig.broadcastGroupIds.length === 0) res += `- Belum ada grup broadcast.\n`;
+                        else this.botConfig.broadcastGroupIds.forEach((g, i) => res += `${i + 1}. ${g}\n`);
+                        res += `\n*📣 Channel Pengumuman:*\n${this.botConfig.announcementChannelId || '(belum diatur)'}`;
+                        msg.reply(res);
+                    }
+                    else if (command === '!botadmin setannouncement') {
+                        const channelId = args[2];
+                        if (channelId) {
+                            this.botConfig.announcementChannelId = channelId;
+                            this.saveConfig();
+                            msg.reply(`✅ Channel Pengumuman berhasil diatur ke: ${channelId}`);
+                        } else {
+                            msg.reply(`Format salah.\nGunakan: !botadmin setannouncement [CHANNEL_ID]`);
+                        }
+                    }
+                    else if (text.startsWith('!botadmin broadcast ')) {
+                        const message = text.replace('!botadmin broadcast ', '').trim();
+                        if (!message) { msg.reply('Format salah.\nGunakan: !botadmin broadcast [pesan]'); return; }
+                        if (this.botConfig.broadcastGroupIds.length === 0) { msg.reply('❌ Belum ada grup broadcast. Tambah dulu dengan !botadmin addbroadcast [ID]'); return; }
+                        msg.reply(`📢 Mengirim broadcast ke ${this.botConfig.broadcastGroupIds.length} grup...`);
+                        const results = await this.broadcastToGroups(message);
+                        msg.reply(`✅ Broadcast selesai.\nBerhasil: ${results.success}/${results.total} grup.`);
+                    }
+                    else if (text.startsWith('!botadmin announce ')) {
+                        const message = text.replace('!botadmin announce ', '').trim();
+                        if (!message) { msg.reply('Format salah.\nGunakan: !botadmin announce [pesan]'); return; }
+                        if (!this.botConfig.announcementChannelId) { msg.reply('❌ Channel pengumuman belum diatur. Gunakan !botadmin setannouncement [ID]'); return; }
+                        const ok = await this.sendToGroup(this.botConfig.announcementChannelId, message);
+                        msg.reply(ok ? '✅ Pesan pengumuman berhasil dikirim!' : '❌ Gagal mengirim pesan pengumuman.');
+                    }
+                    else if (text.startsWith('!botadmin sendgroup ')) {
+                        const parts = text.replace('!botadmin sendgroup ', '').trim().split(' ');
+                        const groupId = parts[0];
+                        const message = parts.slice(1).join(' ');
+                        if (!groupId || !message) { msg.reply('Format salah.\nGunakan: !botadmin sendgroup [GROUP_ID] [pesan]'); return; }
+                        const ok = await this.sendToGroup(groupId, message);
+                        msg.reply(ok ? `✅ Pesan berhasil dikirim ke ${groupId}` : `❌ Gagal mengirim pesan ke ${groupId}`);
+                    }
                 }
             } catch (err) {
                 this.logger.error('Error handling message', err);
@@ -206,6 +283,96 @@ export class WhatsappService implements OnModuleInit {
             qrCode: this.qrCodeUrl,
             isReady: this.isReady
         };
+    }
+
+    async getJoinedGroups(): Promise<{ id: string; name: string; isBroadcast: boolean; isAnnouncement: boolean }[]> {
+        if (!this.isReady) return [];
+        try {
+            const chats = await this.client.getChats();
+            return chats
+                .filter(c => c.isGroup)
+                .map(c => ({
+                    id: c.id._serialized,
+                    name: c.name,
+                    isBroadcast: this.botConfig.broadcastGroupIds.includes(c.id._serialized),
+                    isAnnouncement: this.botConfig.announcementChannelId === c.id._serialized,
+                }));
+        } catch (error) {
+            this.logger.error('Failed to get joined groups', error);
+            return [];
+        }
+    }
+
+    async sendToGroup(groupId: string, message: string, images: string[] = []): Promise<boolean> {
+        if (!this.isReady) {
+            this.logger.warn('Cannot send message: WhatsApp bot is not ready.');
+            return false;
+        }
+        try {
+            await this.client.sendMessage(groupId, message);
+            if (images && images.length > 0) {
+                let i = 1;
+                for (const relativePath of images) {
+                    const absolutePath = path.join(process.cwd(), relativePath);
+                    if (fs.existsSync(absolutePath)) {
+                        const media = MessageMedia.fromFilePath(absolutePath);
+                        await this.client.sendMessage(groupId, media, { caption: `Lampiran ${i}/${images.length}` });
+                        i++;
+                    }
+                }
+            }
+            this.logger.log(`Message sent to ${groupId}`);
+            return true;
+        } catch (error: any) {
+            this.logger.error(`Failed to send message to ${groupId}: ${error.message}`);
+            return false;
+        }
+    }
+
+    async broadcastToGroups(message: string, images: string[] = []): Promise<{ success: number; failed: number; total: number }> {
+        const targets = this.botConfig.broadcastGroupIds;
+        let success = 0;
+        let failed = 0;
+        for (const groupId of targets) {
+            const ok = await this.sendToGroup(groupId, message, images);
+            if (ok) success++; else failed++;
+            // Delay antar pesan untuk menghindari rate limit WhatsApp
+            if (targets.indexOf(groupId) < targets.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+        }
+        return { success, failed, total: targets.length };
+    }
+
+    async sendToAnnouncement(message: string, images: string[] = []): Promise<boolean> {
+        const target = this.botConfig.announcementChannelId;
+        if (!target) {
+            this.logger.warn('Cannot send announcement: announcementChannelId not configured.');
+            return false;
+        }
+        return this.sendToGroup(target, message, images);
+    }
+
+    getConfig() {
+        return {
+            broadcastGroupIds: this.botConfig.broadcastGroupIds,
+            announcementChannelId: this.botConfig.announcementChannelId,
+        };
+    }
+
+    async updateBroadcastGroups(add?: string, remove?: string): Promise<void> {
+        if (add && !this.botConfig.broadcastGroupIds.includes(add)) {
+            this.botConfig.broadcastGroupIds.push(add);
+        }
+        if (remove) {
+            this.botConfig.broadcastGroupIds = this.botConfig.broadcastGroupIds.filter(id => id !== remove);
+        }
+        this.saveConfig();
+    }
+
+    async setAnnouncementChannel(channelId: string | null): Promise<void> {
+        this.botConfig.announcementChannelId = channelId;
+        this.saveConfig();
     }
 
     async sendReport(reportMsg: string, proofImages: string[] = []): Promise<boolean> {
