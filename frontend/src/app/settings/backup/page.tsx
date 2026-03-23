@@ -40,7 +40,7 @@ export default function BackupPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // ── Auto-select all groups saat grup dimuat ─────────────────────────────
-    const allGroupKeys = groups.map((g: any) => g.key);
+    const allGroupKeys: string[] = groups.map((g: any) => g.key);
     const allSelected = allGroupKeys.length > 0 && allGroupKeys.every((k: string) => selectedGroups.has(k));
 
     useEffect(() => {
