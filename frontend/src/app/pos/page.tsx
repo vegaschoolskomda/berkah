@@ -1025,7 +1025,7 @@ export default function POSPage() {
                                             <p className="text-sm font-medium truncate">{item.name}</p>
                                             {item.pricingMode === 'AREA_BASED'
                                                 ? <p className="text-xs text-muted-foreground">{item.unitType === 'menit' ? `${item.widthCm} unit` : `${item.widthCm}×${item.heightCm} ${item.unitType || 'm'} = ${item.areaM2?.toFixed(4)} ${item.unitType === 'm' || item.unitType === 'cm' ? 'm²' : 'unit'}`}{item.note ? ` • ${item.note}` : ''}</p>
-                                                : <p className="text-xs text-muted-foreground">×{item.qty} @ Rp {item.price.toLocaleString('id-ID')}{item.priceTiers.length > 0 && item.price !== item.pricePerUnit ? <span className="ml-1 text-orange-500 font-semibold">tier</span> : null}</p>
+                                                : <p className="text-xs text-muted-foreground">×{item.qty} @ Rp {item.price.toLocaleString('id-ID')}{item.price !== item.pricePerUnit ? <span className="ml-1 text-orange-500 font-semibold">tier</span> : null}</p>
                                             }
                                         </div>
                                         <p className="text-sm font-semibold shrink-0">Rp {(item.price * item.qty).toLocaleString('id-ID')}</p>
