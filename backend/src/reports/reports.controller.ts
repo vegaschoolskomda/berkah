@@ -32,6 +32,9 @@ export class CloseShiftDto {
     realBankBalances?: Record<string, number>;     // Saldo Real di Bank
     shiftExpenses?: any[];
     structuredExpenses?: StructuredExpenses;       // Pengeluaran terstruktur per metode
+    kasbon?: { name: string; amount: number }[];        // Kasbon karyawan
+    setorKas?: { bankName: string; amount: number }[];  // Setor kas ke rekening
+    tarikTunai?: { bankName: string; amount: number }[]; // Tarik tunai dari rekening ke kas
 }
 
 @Controller('reports')
@@ -88,6 +91,9 @@ export class ReportsController {
             realBankBalances: body.realBankBalances ? JSON.parse(body.realBankBalances) : undefined,
             shiftExpenses: body.shiftExpenses ? JSON.parse(body.shiftExpenses) : undefined,
             structuredExpenses: body.structuredExpenses ? JSON.parse(body.structuredExpenses) : undefined,
+            kasbon: body.kasbon ? JSON.parse(body.kasbon) : [],
+            setorKas: body.setorKas ? JSON.parse(body.setorKas) : [],
+            tarikTunai: body.tarikTunai ? JSON.parse(body.tarikTunai) : [],
         };
 
         const uploadedPaths = files ? files.map((f) => f.path) : [];

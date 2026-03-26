@@ -272,6 +272,9 @@ export class ReportsService {
                 realBankBalances: dto.realBankBalances || {},
                 shiftExpenses: dto.shiftExpenses || [],
                 structuredExpenses: dto.structuredExpenses || {},
+                kasbon: dto.kasbon || [],
+                setorKas: dto.setorKas || [],
+                tarikTunai: dto.tarikTunai || [],
             },
         });
 
@@ -302,7 +305,10 @@ export class ReportsService {
             dto.realBankBalances || {},
             dto.actualQris,
             dto.structuredExpenses,
-            settings
+            settings,
+            dto.kasbon || [],
+            dto.setorKas || [],
+            dto.tarikTunai || [],
         );
 
         this.whatsappService.sendReport(reportMsg, proofImages).catch((err) => {
@@ -319,7 +325,10 @@ export class ReportsService {
         realBankBalances: Record<string, number>,    // Saldo Real di Bank
         actualQris: number,
         structuredExpenses: StructuredExpenses | undefined,
-        settings?: any
+        settings?: any,
+        kasbon: { name: string; amount: number }[] = [],
+        setorKas: { bankName: string; amount: number }[] = [],
+        tarikTunai: { bankName: string; amount: number }[] = [],
     ): string {
         const formatRp = (val: number) => {
             return 'Rp ' + new Intl.NumberFormat('id-ID', {
@@ -377,6 +386,34 @@ export class ReportsService {
                 cashExps.forEach((e: any, idx: number) => {
                     msg += `${idx + 1}. ${e.note} : ${formatRp(e.amount)}\n`;
                 });
+            }
+        }
+
+        // Setor Kas ke Rekening
+        if (setorKas && setorKas.length > 0) {
+            msg += `\n💸 Setor Kas ke Rekening :\n`;
+            setorKas.forEach(s => {
+                msg += `  ${s.bankName.toUpperCase()} : ${formatRp(s.amount)}\n`;
+            });
+        }
+
+        // Tarik Tunai dari Rekening
+        if (tarikTunai && tarikTunai.length > 0) {
+            msg += `\n🏧 Tarik Tunai dari Rekening :\n`;
+            tarikTunai.forEach(s => {
+                msg += `  ${s.bankName.toUpperCase()} : ${formatRp(s.amount)}\n`;
+            });
+        }
+
+        // Kasbon Karyawan
+        if (kasbon && kasbon.length > 0) {
+            msg += `\n👤 Kasbon Karyawan :\n`;
+            kasbon.forEach((k, i) => {
+                msg += `  ${i + 1}. ${k.name} : ${formatRp(k.amount)}\n`;
+            });
+            if (kasbon.length > 1) {
+                const totalKasbon = kasbon.reduce((sum, k) => sum + k.amount, 0);
+                msg += `  Total : ${formatRp(totalKasbon)}\n`;
             }
         }
 

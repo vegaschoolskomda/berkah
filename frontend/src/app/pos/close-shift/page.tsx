@@ -11,7 +11,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
     ArrowLeft, Camera, CheckCircle2, ChevronRight,
-    Calculator, AlertTriangle, Plus, Trash2, Users, Clock
+    Calculator, AlertTriangle, Plus, Trash2, Users, Clock, Banknote, UserCheck
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -37,6 +37,11 @@ export default function CloseShiftPage() {
 
     // ─── State: Pengeluaran Terstruktur ──────────────────────────────────
     const [structuredExpenses, setStructuredExpenses] = useState<StructuredExpenses>({});
+
+    // ─── State: Kasbon & Setor Kas & Tarik Tunai ────────────────────────
+    const [kasbon, setKasbon] = useState<{ name: string; amount: number }[]>([]);
+    const [setorKas, setSetorKas] = useState<{ bankName: string; amount: number }[]>([]);
+    const [tarikTunai, setTarikTunai] = useState<{ bankName: string; amount: number }[]>([]);
 
     // ─── State: Catatan & Bukti ──────────────────────────────────────────
     const [notes, setNotes] = useState('');
@@ -116,6 +121,39 @@ export default function CloseShiftPage() {
         return total;
     };
 
+    // ─── Helper: Kasbon ──────────────────────────────────────────────────
+    const addKasbon = () => setKasbon(prev => [...prev, { name: '', amount: 0 }]);
+    const updateKasbon = (idx: number, field: 'name' | 'amount', value: string | number) =>
+        setKasbon(prev => prev.map((k, i) => i === idx ? { ...k, [field]: field === 'amount' ? Number(value) : value } : k));
+    const removeKasbon = (idx: number) => setKasbon(prev => prev.filter((_, i) => i !== idx));
+    const getTotalKasbon = () => kasbon.reduce((sum, k) => sum + (Number(k.amount) || 0), 0);
+
+    // ─── Helper: Setor Kas ───────────────────────────────────────────────
+    const bankOptions = Object.keys(shiftData?.systemBankBalances || {});
+    const addSetorKas = () => setSetorKas(prev => [...prev, { bankName: bankOptions[0] || '', amount: 0 }]);
+    const updateSetorKas = (idx: number, field: 'bankName' | 'amount', value: string | number) =>
+        setSetorKas(prev => prev.map((s, i) => i === idx ? { ...s, [field]: field === 'amount' ? Number(value) : value } : s));
+    const removeSetorKas = (idx: number) => setSetorKas(prev => prev.filter((_, i) => i !== idx));
+    const getTotalSetorKas = () => setorKas.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+
+    // ─── Helper: Tarik Tunai dari Rekening ──────────────────────────────
+    const addTarikTunai = () => setTarikTunai(prev => [...prev, { bankName: bankOptions[0] || '', amount: 0 }]);
+    const updateTarikTunai = (idx: number, field: 'bankName' | 'amount', value: string | number) =>
+        setTarikTunai(prev => prev.map((s, i) => i === idx ? { ...s, [field]: field === 'amount' ? Number(value) : value } : s));
+    const removeTarikTunai = (idx: number) => setTarikTunai(prev => prev.filter((_, i) => i !== idx));
+    const getTotalTarikTunai = () => tarikTunai.reduce((sum, s) => sum + (Number(s.amount) || 0), 0);
+
+    // ─── Adjusted Expected ───────────────────────────────────────────────
+    // Setor kas: kas berkurang, bank bertambah
+    // Tarik tunai: kas bertambah, bank berkurang
+    const adjustedExpectedCash = (shiftData?.expectedCash || 0) - getTotalSetorKas() + getTotalTarikTunai();
+    const getAdjustedExpectedBank = (bankName: string) => {
+        const base = shiftData?.systemBankBalances?.[bankName] || 0;
+        const setor = setorKas.filter(s => s.bankName === bankName).reduce((sum, s) => sum + s.amount, 0);
+        const tarik = tarikTunai.filter(s => s.bankName === bankName).reduce((sum, s) => sum + s.amount, 0);
+        return base + setor - tarik;
+    };
+
     // ─── Helper: Format & Badge ──────────────────────────────────────────
     const formatCurrency = (amount: number) =>
         new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', minimumFractionDigits: 0 }).format(amount || 0);
@@ -142,7 +180,7 @@ export default function CloseShiftPage() {
         formData.append('openedAt', shiftData.openedAt || new Date().toISOString());
         formData.append('closedAt', new Date().toISOString());
 
-        formData.append('expectedCash', String(shiftData.expectedCash || 0));
+        formData.append('expectedCash', String(adjustedExpectedCash));
         formData.append('expectedQris', String(shiftData.expectedQris || 0));
         formData.append('expectedTransfer', String(shiftData.expectedTransfer || 0));
 
@@ -157,6 +195,9 @@ export default function CloseShiftPage() {
         formData.append('realBankBalances', JSON.stringify(realBankBalances));
         formData.append('shiftExpenses', JSON.stringify(shiftData.shiftExpenses || []));
         formData.append('structuredExpenses', JSON.stringify(structuredExpenses));
+        formData.append('kasbon', JSON.stringify(kasbon.filter(k => k.name && k.amount > 0)));
+        formData.append('setorKas', JSON.stringify(setorKas.filter(s => s.bankName && s.amount > 0)));
+        formData.append('tarikTunai', JSON.stringify(tarikTunai.filter(s => s.bankName && s.amount > 0)));
 
         files.forEach(file => formData.append('proofImages', file));
         closeShiftMutation.mutate(formData);
@@ -176,7 +217,7 @@ export default function CloseShiftPage() {
         </div>
     );
 
-    const expectedCash = shiftData?.expectedCash || 0;
+    const expectedCash = adjustedExpectedCash;
     const expectedQris = shiftData?.expectedQris || 0;
     let grossAll = (shiftData?.grossCash || 0) + (shiftData?.grossQris || 0);
     Object.values(shiftData?.grossBankIncomes || {}).forEach((v: any) => grossAll += v);
@@ -434,17 +475,142 @@ export default function CloseShiftPage() {
                             </CardContent>
                         </Card>
 
+                        {/* ── Kartu 3.5: Setor Kas & Kasbon ── */}
+                        <Card className="border-t-4 border-t-cyan-500 border-slate-200">
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-base">4. Setor Kas & Kasbon</CardTitle>
+                                <CardDescription>Catat mutasi kas fisik ↔ rekening dan kasbon karyawan di shift ini.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+
+                                {/* Setor Kas ke Rekening */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <p className="font-semibold text-slate-700 text-sm flex items-center gap-1.5">
+                                            <Banknote className="w-4 h-4 text-cyan-600" /> Setor Kas ke Rekening
+                                        </p>
+                                        <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={addSetorKas} disabled={bankOptions.length === 0}>
+                                            <Plus className="w-3 h-3" /> Tambah
+                                        </Button>
+                                    </div>
+                                    {bankOptions.length === 0 && (
+                                        <p className="text-xs text-slate-400 italic pl-1">Tidak ada rekening bank aktif.</p>
+                                    )}
+                                    {setorKas.length === 0 && bankOptions.length > 0 && (
+                                        <p className="text-xs text-slate-400 italic pl-1">Belum ada setor kas</p>
+                                    )}
+                                    {setorKas.map((s, idx) => (
+                                        <div key={idx} className="flex gap-2 items-center">
+                                            <span className="text-slate-400 text-sm w-5 text-right">{idx + 1}.</span>
+                                            <select
+                                                className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring flex-1"
+                                                value={s.bankName}
+                                                onChange={(e) => updateSetorKas(idx, 'bankName', e.target.value)}
+                                            >
+                                                {bankOptions.map(b => <option key={b} value={b}>{b}</option>)}
+                                            </select>
+                                            <div className="relative w-36">
+                                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">Rp</span>
+                                                <Input type="number" min="0" className="pl-7 text-right text-sm" value={s.amount || ''} onChange={(e) => updateSetorKas(idx, 'amount', e.target.value)} placeholder="0" />
+                                            </div>
+                                            <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => removeSetorKas(idx)}>
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                    {setorKas.length > 0 && (
+                                        <p className="text-xs text-cyan-700 bg-cyan-50 border border-cyan-200 rounded px-2 py-1">
+                                            💡 Target kas tunai otomatis berkurang {formatCurrency(getTotalSetorKas())} — target saldo rekening tujuan bertambah.
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Tarik Tunai dari Rekening */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <p className="font-semibold text-slate-700 text-sm flex items-center gap-1.5">
+                                            <Banknote className="w-4 h-4 text-emerald-600" /> Tarik Tunai dari Rekening
+                                        </p>
+                                        <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={addTarikTunai} disabled={bankOptions.length === 0}>
+                                            <Plus className="w-3 h-3" /> Tambah
+                                        </Button>
+                                    </div>
+                                    {tarikTunai.length === 0 && bankOptions.length > 0 && (
+                                        <p className="text-xs text-slate-400 italic pl-1">Belum ada tarik tunai</p>
+                                    )}
+                                    {tarikTunai.map((s, idx) => (
+                                        <div key={idx} className="flex gap-2 items-center">
+                                            <span className="text-slate-400 text-sm w-5 text-right">{idx + 1}.</span>
+                                            <select
+                                                className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring flex-1"
+                                                value={s.bankName}
+                                                onChange={(e) => updateTarikTunai(idx, 'bankName', e.target.value)}
+                                            >
+                                                {bankOptions.map(b => <option key={b} value={b}>{b}</option>)}
+                                            </select>
+                                            <div className="relative w-36">
+                                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">Rp</span>
+                                                <Input type="number" min="0" className="pl-7 text-right text-sm" value={s.amount || ''} onChange={(e) => updateTarikTunai(idx, 'amount', e.target.value)} placeholder="0" />
+                                            </div>
+                                            <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => removeTarikTunai(idx)}>
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                    {tarikTunai.length > 0 && (
+                                        <p className="text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-1">
+                                            💡 Target kas tunai otomatis bertambah {formatCurrency(getTotalTarikTunai())} — target saldo rekening asal berkurang.
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Kasbon Karyawan */}
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <p className="font-semibold text-slate-700 text-sm flex items-center gap-1.5">
+                                            <UserCheck className="w-4 h-4 text-amber-600" /> Kasbon Karyawan
+                                        </p>
+                                        <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={addKasbon}>
+                                            <Plus className="w-3 h-3" /> Tambah
+                                        </Button>
+                                    </div>
+                                    {kasbon.length === 0 && (
+                                        <p className="text-xs text-slate-400 italic pl-1">Belum ada kasbon</p>
+                                    )}
+                                    {kasbon.map((k, idx) => (
+                                        <div key={idx} className="flex gap-2 items-center">
+                                            <span className="text-slate-400 text-sm w-5 text-right">{idx + 1}.</span>
+                                            <Input placeholder="Nama karyawan" className="flex-1 text-sm" value={k.name} onChange={(e) => updateKasbon(idx, 'name', e.target.value)} />
+                                            <div className="relative w-36">
+                                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">Rp</span>
+                                                <Input type="number" min="0" className="pl-7 text-right text-sm" value={k.amount || ''} onChange={(e) => updateKasbon(idx, 'amount', e.target.value)} placeholder="0" />
+                                            </div>
+                                            <Button type="button" variant="ghost" size="icon" className="h-9 w-9 text-red-400 hover:text-red-600 hover:bg-red-50" onClick={() => removeKasbon(idx)}>
+                                                <Trash2 className="w-4 h-4" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                    {kasbon.length > 0 && (
+                                        <div className="flex justify-between items-center pt-1 border-t text-sm font-semibold">
+                                            <span className="text-slate-600">Total Kasbon</span>
+                                            <span className="text-amber-600">{formatCurrency(getTotalKasbon())}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </CardContent>
+                        </Card>
+
                         {/* ── Kartu 4: Saldo Bank (Laporan & Real) ── */}
                         <Card className="border-t-4 border-t-purple-500 border-slate-200">
                             <CardHeader className="pb-3">
-                                <CardTitle className="text-base">4. Saldo Rekening Bank</CardTitle>
+                                <CardTitle className="text-base">5. Saldo Rekening Bank</CardTitle>
                                 <CardDescription>
                                     Buka mBanking dan isi kedua kolom untuk setiap rekening.
                                 </CardDescription>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {shiftData?.systemBankBalances && Object.keys(shiftData.systemBankBalances).map(bankName => {
-                                    const expectedBankAbs = shiftData.systemBankBalances[bankName] || 0;
+                                    const expectedBankAbs = getAdjustedExpectedBank(bankName);
                                     const laporan = actualBankBalances[bankName] ?? 0;
                                     const real = realBankBalances[bankName] ?? 0;
                                     const selisih = real - laporan;
@@ -511,7 +677,7 @@ export default function CloseShiftPage() {
                         {/* ── Kartu 5: Lampiran & Catatan ── */}
                         <Card className="border-t-4 border-t-emerald-500 border-slate-200">
                             <CardHeader className="pb-3">
-                                <CardTitle className="text-base">5. Lampiran & Catatan</CardTitle>
+                                <CardTitle className="text-base">6. Lampiran & Catatan</CardTitle>
                             </CardHeader>
                             <CardContent className="space-y-4">
                                 {/* Upload Foto */}
