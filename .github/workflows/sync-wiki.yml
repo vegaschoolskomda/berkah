@@ -19,3 +19,4 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           path: docs/wiki/
+          ignore: index.md
