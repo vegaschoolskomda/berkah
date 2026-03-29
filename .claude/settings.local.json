@@ -15,7 +15,16 @@
       "Bash(find /d/FAISAL/appdev/comprehensive-pos-web-application -maxdepth 1 -name *config*)",
       "Bash(wc:*)",
       "Bash(find D:WEBDEVPos-Web-Application/backend/src -type f \\\\\\(-name *.ts -o -name *.js \\\\\\))",
-      "Bash(find D:WEBDEVPos-Web-Application/frontend/src -type f -name *.vue)"
+      "Bash(find D:WEBDEVPos-Web-Application/frontend/src -type f -name *.vue)",
+      "WebFetch(domain:docs.testsprite.com)",
+      "mcp__TestSprite__testsprite_check_account_info",
+      "mcp__TestSprite__testsprite_bootstrap",
+      "mcp__TestSprite__testsprite_generate_code_summary",
+      "mcp__TestSprite__testsprite_generate_frontend_test_plan",
+      "mcp__TestSprite__testsprite_generate_standardized_prd",
+      "mcp__TestSprite__testsprite_generate_code_and_execute",
+      "Bash(ls:*)",
+      "mcp__TestSprite__testsprite_open_test_result_dashboard"
     ]
   }
 }

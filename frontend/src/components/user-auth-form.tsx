@@ -60,7 +60,7 @@ export function UserAuthForm({ className, mobileGlass, ...props }: UserAuthFormP
                 expires.setTime(expires.getTime() + (1 * 24 * 60 * 60 * 1000));
                 document.cookie = `token=${data.access_token};expires=${expires.toUTCString()};path=/`;
 
-                router.push('/');
+                router.replace('/');
             }
         } catch (error: any) {
             setErrorMsg(error.message);
@@ -77,6 +77,7 @@ export function UserAuthForm({ className, mobileGlass, ...props }: UserAuthFormP
                         <Label className="sr-only" htmlFor="email">Email</Label>
                         <Input
                             id="email"
+                            name="email"
                             placeholder="name@example.com"
                             type="email"
                             autoCapitalize="none"
@@ -91,6 +92,7 @@ export function UserAuthForm({ className, mobileGlass, ...props }: UserAuthFormP
                         <Label className="sr-only" htmlFor="password">Password</Label>
                         <Input
                             id="password"
+                            name="password"
                             placeholder="Password"
                             type="password"
                             autoCapitalize="none"
