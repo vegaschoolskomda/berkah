@@ -11,6 +11,7 @@ export interface ReceiptItem {
   heightCm?: number;
   areaM2?: number;
   customPrice?: number | null;
+  pcs?: number;
 }
 
 export interface ReceiptSnapshot {
@@ -56,6 +57,7 @@ export const buildWhatsAppText = (snap: ReceiptSnapshot, status: 'TAGIHAN' | 'LU
       if (u === 'menit') dimStr = `${item.widthCm} menit`;
       else dimStr = `${item.widthCm}x${item.heightCm} ${u} = ${item.areaM2?.toLocaleString('id-ID')} unit`;
       line += `\n  Jml: ${item.qty} | Dimensi: ${dimStr}`;
+      if (item.pcs && item.pcs > 1) line += `\n  PCS/Kopi: ×${item.pcs}`;
       line += `\n  Harga dasar: Rp ${item.pricePerUnit.toLocaleString('id-ID')}`;
     } else {
       line += `\n  Jml: ${item.qty} x Rp ${item.pricePerUnit.toLocaleString('id-ID')}`;
@@ -126,7 +128,7 @@ export const buildInvoiceHTML = (snap: ReceiptSnapshot, status: 'TAGIHAN' | 'LUN
       }
     }
 
-    const qtyStr = `${item.qty}`;
+    const qtyStr = isArea ? `${item.pcs && item.pcs > 1 ? item.pcs : 1}` : `${item.qty}`;
     const noteStr = item.note ? `<br><span style="font-size:10px; color:#555;">${item.note}</span>` : '';
 
     const displayPrice = item.customPrice != null ? item.customPrice : item.pricePerUnit;

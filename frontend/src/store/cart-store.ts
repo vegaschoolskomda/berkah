@@ -31,6 +31,7 @@ export interface CartItem {
     heightCm?: number;
     areaCm2?: number;
     areaM2?: number;
+    pcs?: number;  // jumlah kopi/PCS. price = singleAreaPrice × pcs
 }
 
 interface CartState {
@@ -38,10 +39,11 @@ interface CartState {
     taxRate: number;
     discount: number;
 
-    addItem: (product: any, variant: any, areaDimensions?: { widthCm: number; heightCm: number; unitType: 'm' | 'cm' | 'menit'; note?: string }) => void;
+    addItem: (product: any, variant: any, areaDimensions?: { widthCm: number; heightCm: number; unitType: 'm' | 'cm' | 'menit'; note?: string; pcs?: number }) => void;
     removeItem: (lineId: string) => void;
     updateQuantity: (lineId: string, delta: number) => void;
-    updateAreaDimensions: (lineId: string, widthCm: number, heightCm: number, unitType: 'm' | 'cm' | 'menit', pricePerUnitM2: number, note?: string) => void;
+    setQuantityDirect: (lineId: string, qty: number) => void;
+    updateAreaDimensions: (lineId: string, widthCm: number, heightCm: number, unitType: 'm' | 'cm' | 'menit', pricePerUnitM2: number, note?: string, pcs?: number) => void;
     updateNote: (lineId: string, note: string) => void;
     updateCustomPrice: (lineId: string, customPrice: number | null) => void;
     clearCart: () => void;
@@ -93,8 +95,10 @@ export const useCartStore = create<CartState>((set, get) => ({
             if (pricingMode === 'AREA_BASED') {
                 if (!areaDimensions) return state; // must have dimensions from modal
 
-                const { widthCm, heightCm, unitType, note } = areaDimensions;
-                const { areaM2, price } = computeAreaPrice(widthCm, heightCm, pricePerUnit, unitType);
+                const { widthCm, heightCm, unitType, note, pcs: pcsRaw } = areaDimensions;
+                const pcs = Math.max(1, Math.round(Number(pcsRaw) || 1));
+                const { areaM2, price: singlePrice } = computeAreaPrice(widthCm, heightCm, pricePerUnit, unitType);
+                const price = singlePrice * pcs;
 
                 // Each call ALWAYS creates a NEW line item (different sizes per job)
                 const lineId = `${variant.id}_${Date.now()}`;
@@ -116,7 +120,8 @@ export const useCartStore = create<CartState>((set, get) => ({
                         unitType,
                         widthCm,
                         heightCm,
-                        areaM2
+                        areaM2,
+                        pcs
                     }]
                 };
             }
@@ -174,12 +179,27 @@ export const useCartStore = create<CartState>((set, get) => ({
         }));
     },
 
-    updateAreaDimensions: (lineId, widthCm, heightCm, unitType, pricePerUnitM2, note) => {
+    setQuantityDirect: (lineId, qty) => {
+        set((state) => ({
+            items: state.items.map(i => {
+                if (i.lineId !== lineId || i.pricingMode === 'AREA_BASED') return i;
+                const clampedQty = i.trackStock !== false ? Math.min(qty, i.stock) : qty;
+                if (clampedQty <= 0) return i;
+                if (i.customPrice != null) return { ...i, qty: clampedQty };
+                const newPrice = applyTierPrice(clampedQty, i.pricePerUnit, i.priceTiers);
+                return { ...i, qty: clampedQty, price: newPrice };
+            })
+        }));
+    },
+
+    updateAreaDimensions: (lineId, widthCm, heightCm, unitType, pricePerUnitM2, note, pcs) => {
         set((state) => ({
             items: state.items.map(i => {
                 if (i.lineId !== lineId || i.pricingMode !== 'AREA_BASED') return i;
-                const { areaM2, price } = computeAreaPrice(widthCm, heightCm, pricePerUnitM2, unitType);
-                return { ...i, unitType, widthCm, heightCm, areaM2, price, note: note ?? i.note };
+                const resolvedPcs = Math.max(1, Math.round(Number(pcs) || 1));
+                const { areaM2, price: singlePrice } = computeAreaPrice(widthCm, heightCm, pricePerUnitM2, unitType);
+                const price = singlePrice * resolvedPcs;
+                return { ...i, unitType, widthCm, heightCm, areaM2, price, pcs: resolvedPcs, note: note ?? i.note };
             })
         }));
     },
@@ -199,7 +219,8 @@ export const useCartStore = create<CartState>((set, get) => ({
                     if (i.pricingMode === 'UNIT') {
                         return { ...rest, price: applyTierPrice(i.qty, i.pricePerUnit, i.priceTiers) };
                     } else {
-                        const { price } = computeAreaPrice(i.widthCm!, i.heightCm!, i.pricePerUnit, i.unitType!);
+                        const { price: singlePrice } = computeAreaPrice(i.widthCm!, i.heightCm!, i.pricePerUnit, i.unitType!);
+                        const price = singlePrice * (i.pcs || 1);
                         return { ...rest, price };
                     }
                 }

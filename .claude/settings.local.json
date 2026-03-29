@@ -24,7 +24,8 @@
       "mcp__TestSprite__testsprite_generate_standardized_prd",
       "mcp__TestSprite__testsprite_generate_code_and_execute",
       "Bash(ls:*)",
-      "mcp__TestSprite__testsprite_open_test_result_dashboard"
+      "mcp__TestSprite__testsprite_open_test_result_dashboard",
+      "Bash(find D:FAISALappdevcomprehensive-pos-web-applicationfrontendsrc -type f \\\\\\(-name *cart* -o -name *sidebar* \\\\\\))"
     ]
   }
 }

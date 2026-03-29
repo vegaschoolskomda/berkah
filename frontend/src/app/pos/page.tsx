@@ -29,10 +29,11 @@ interface AreaModalState {
     widthCm: string;
     heightCm: string;
     note: string;
+    pcs: string;
 }
 
 const emptyAreaModal = (): AreaModalState => ({
-    open: false, mode: 'add', product: null, variant: null, unitType: 'm', widthCm: '', heightCm: '', note: ''
+    open: false, mode: 'add', product: null, variant: null, unitType: 'm', widthCm: '', heightCm: '', note: '', pcs: '1'
 });
 
 import { ReceiptSnapshot, handlePrintSnap, handleShareWA } from '@/lib/receipt';
@@ -80,6 +81,9 @@ export default function POSPage() {
     // Inline price edit state
     const [priceEditState, setPriceEditState] = useState<{ lineId: string; value: string } | null>(null);
 
+    // Inline qty edit state (UNIT items)
+    const [qtyEditState, setQtyEditState] = useState<{ lineId: string; value: string } | null>(null);
+
     const cart = useCartStore((state) => state.items);
     const addItem = useCartStore((state) => state.addItem);
     const removeItem = useCartStore((state) => state.removeItem);
@@ -87,6 +91,7 @@ export default function POSPage() {
     const updateAreaDimensions = useCartStore((state) => state.updateAreaDimensions);
     const updateNote = useCartStore((state) => state.updateNote);
     const updateCustomPrice = useCartStore((state) => state.updateCustomPrice);
+    const setQuantityDirect = useCartStore((state) => state.setQuantityDirect);
     const clearCart = useCartStore((state) => state.clearCart);
     const _subtotal = useCartStore((state) => state.subtotal());
     const taxRate = settings?.enableTax ? Number(settings.taxRate ?? 10) : 0;
@@ -118,6 +123,7 @@ export default function POSPage() {
             heightCm: item.heightCm,
             areaM2: item.areaM2,
             customPrice: item.customPrice,
+            pcs: item.pcs,
         })),
         subtotal,
         taxAmount,
@@ -159,7 +165,7 @@ export default function POSPage() {
 
     // Open area modal for a fresh new line (clicking card or '+')
     const openAreaModalFresh = (product: any, variant: any) => {
-        setAreaModal({ open: true, mode: 'add', product, variant, unitType: 'm', widthCm: '', heightCm: '', note: '' });
+        setAreaModal({ open: true, mode: 'add', product, variant, unitType: 'm', widthCm: '', heightCm: '', note: '', pcs: '1' });
     };
 
     // Open area modal with existing data to edit a cart line
@@ -174,7 +180,8 @@ export default function POSPage() {
             unitType: item.unitType || 'm',
             widthCm: String(item.widthCm || ''),
             heightCm: String(item.heightCm || ''),
-            note: item.note || ''
+            note: item.note || '',
+            pcs: String(item.pcs || 1)
         });
     };
 
@@ -198,17 +205,19 @@ export default function POSPage() {
         else if (areaModal.unitType === 'cm') areaForStock = (w * h) / 10000;
         else if (areaModal.unitType === 'menit') areaForStock = w;
 
+        const pcs = Math.max(1, parseInt(areaModal.pcs, 10) || 1);
+        const totalAreaForStock = areaForStock * pcs;
         const stockM2 = Number(areaModal.variant?.stock || 0);
-        if (areaModal.product?.trackStock !== false && areaForStock > stockM2) {
-            alert(`Stok bahan tidak cukup! Tersedia: ${stockM2.toFixed(2)} m², dibutuhkan: ${areaForStock.toFixed(2)} m²`);
+        if (areaModal.product?.trackStock !== false && totalAreaForStock > stockM2) {
+            alert(`Stok bahan tidak cukup! Tersedia: ${stockM2.toFixed(2)} m², dibutuhkan: ${totalAreaForStock.toFixed(2)} m²`);
             return;
         }
         const note = areaModal.note.trim() || undefined;
 
         if (areaModal.mode === 'edit' && areaModal.editLineId) {
-            updateAreaDimensions(areaModal.editLineId, w, h, areaModal.unitType, Number(areaModal.variant?.price || 0), note);
+            updateAreaDimensions(areaModal.editLineId, w, h, areaModal.unitType, Number(areaModal.variant?.price || 0), note, pcs);
         } else {
-            addItem(areaModal.product, areaModal.variant, { widthCm: w, heightCm: h, unitType: areaModal.unitType, note });
+            addItem(areaModal.product, areaModal.variant, { widthCm: w, heightCm: h, unitType: areaModal.unitType, note, pcs });
         }
         setAreaModal(emptyAreaModal());
     };
@@ -325,9 +334,10 @@ export default function POSPage() {
             areaForStock = w;
         }
 
+        const pcs = Math.max(1, parseInt(areaModal.pcs, 10) || 1);
         const unitPrice = Number(areaModal.variant?.price || 0);
-        return { priceMultiplier, areaForStock, computedPrice: priceMultiplier * unitPrice, unitPrice };
-    }, [areaModal.widthCm, areaModal.heightCm, areaModal.unitType, areaModal.variant, areaModal.open]);
+        return { priceMultiplier, areaForStock, computedPrice: priceMultiplier * unitPrice * pcs, unitPrice, pcs };
+    }, [areaModal.widthCm, areaModal.heightCm, areaModal.unitType, areaModal.variant, areaModal.open, areaModal.pcs]);
 
     // Count AREA_BASED lines per variant for the badge
     const areaLineCount = useMemo(() => {
@@ -504,6 +514,11 @@ export default function POSPage() {
                                                             ? `${item.widthCm}×${item.heightCm} cm = ${Math.round(item.areaM2 || 0).toLocaleString('id-ID')} cm²`
                                                             : `${item.widthCm}×${item.heightCm} m = ${item.areaM2?.toLocaleString('id-ID')} m²`}
                                                     </div>
+                                                    {item.pcs && item.pcs > 1 && (
+                                                        <span className="text-[10px] font-bold bg-amber-500/15 text-amber-600 px-1.5 py-0.5 rounded">
+                                                            ×{item.pcs} PCS
+                                                        </span>
+                                                    )}
                                                     <button onClick={() => openAreaModalEdit(item.lineId, item)}
                                                         className="p-1 text-muted-foreground hover:text-primary transition-colors rounded" title="Ubah dimensi">
                                                         <RefreshCw className="w-3 h-3" />
@@ -597,7 +612,38 @@ export default function POSPage() {
                                                         className="p-1 hover:bg-background rounded text-muted-foreground transition-colors">
                                                         <Minus className="h-4 w-4" />
                                                     </button>
-                                                    <span className="w-6 text-center text-sm font-medium">{item.qty}</span>
+                                                    {qtyEditState?.lineId === item.lineId ? (
+                                                        <input
+                                                            type="number" min="1"
+                                                            max={item.trackStock !== false ? item.stock : undefined}
+                                                            autoFocus
+                                                            value={qtyEditState.value}
+                                                            onChange={e => setQtyEditState({ lineId: item.lineId, value: e.target.value })}
+                                                            onKeyDown={e => {
+                                                                if (e.key === 'Enter') {
+                                                                    e.preventDefault();
+                                                                    const v = parseInt(qtyEditState.value, 10);
+                                                                    if (!isNaN(v) && v > 0) setQuantityDirect(item.lineId, v);
+                                                                    setQtyEditState(null);
+                                                                }
+                                                                if (e.key === 'Escape') setQtyEditState(null);
+                                                            }}
+                                                            onBlur={() => {
+                                                                const v = parseInt(qtyEditState.value, 10);
+                                                                if (!isNaN(v) && v > 0) setQuantityDirect(item.lineId, v);
+                                                                setQtyEditState(null);
+                                                            }}
+                                                            className="w-10 text-center text-sm font-medium bg-background border border-primary rounded outline-none focus:ring-1 focus:ring-primary font-mono px-1"
+                                                        />
+                                                    ) : (
+                                                        <span
+                                                            className="w-6 text-center text-sm font-medium cursor-pointer hover:text-primary hover:underline"
+                                                            onClick={() => setQtyEditState({ lineId: item.lineId, value: String(item.qty) })}
+                                                            title="Klik untuk ubah jumlah"
+                                                        >
+                                                            {item.qty}
+                                                        </span>
+                                                    )}
                                                     <button onClick={() => updateQuantity(item.lineId, 1)} disabled={item.trackStock !== false && item.qty >= item.stock}
                                                         className="p-1 hover:bg-background rounded text-muted-foreground transition-colors disabled:opacity-50">
                                                         <Plus className="h-4 w-4" />
@@ -714,8 +760,14 @@ export default function POSPage() {
                                                 : `Rp ${areaPreview.unitPrice.toLocaleString('id-ID')} /m²`}
                                         </span>
                                     </div>
+                                    {areaPreview.pcs > 1 && (
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">PCS / Kopi</span>
+                                            <span className="font-medium text-amber-600">× {areaPreview.pcs}</span>
+                                        </div>
+                                    )}
                                     <div className="flex justify-between border-t border-primary/20 pt-1.5">
-                                        <span className="font-semibold">Total</span>
+                                        <span className="font-semibold">Total{areaPreview.pcs > 1 ? ` (×${areaPreview.pcs} PCS)` : ''}</span>
                                         <span className="text-lg font-bold text-primary">Rp {areaPreview.computedPrice.toLocaleString('id-ID')}</span>
                                     </div>
                                 </div>
@@ -736,6 +788,22 @@ export default function POSPage() {
                                     className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm resize-none"
                                 />
                                 <p className="text-xs text-muted-foreground">Catatan ini akan tampil di keranjang sebagai referensi operator.</p>
+                            </div>
+
+                            {/* PCS / Copies */}
+                            <div className="space-y-1.5">
+                                <label className="text-sm font-medium flex items-center gap-1.5">
+                                    Jumlah PCS / Kopi
+                                    <span className="text-xs font-normal text-muted-foreground">(default: 1)</span>
+                                </label>
+                                <input
+                                    type="number" min="1" step="1"
+                                    value={areaModal.pcs}
+                                    onChange={e => setAreaModal({ ...areaModal, pcs: e.target.value })}
+                                    placeholder="1"
+                                    className="w-full px-3 py-2.5 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm font-mono text-center"
+                                />
+                                <p className="text-xs text-muted-foreground">Untuk dimensi sama yang dicetak lebih dari 1 kali.</p>
                             </div>
 
                             <div className="flex gap-3 pt-1">
