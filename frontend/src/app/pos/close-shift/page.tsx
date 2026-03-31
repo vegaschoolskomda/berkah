@@ -82,8 +82,8 @@ export default function CloseShiftPage() {
             setActualBankBalances(initialBanks);
             setRealBankBalances({ ...initialBanks });
 
-            // Inisialisasi pengeluaran: satu section per bank + CASH
-            const initExpenses: StructuredExpenses = { CASH: [] };
+            // Inisialisasi pengeluaran: QRIS + bank-bank + CASH
+            const initExpenses: StructuredExpenses = { QRIS: [], CASH: [] };
             Object.keys(shiftData.systemBankBalances).forEach(bank => {
                 initExpenses[bank] = [];
             });
@@ -142,6 +142,8 @@ export default function CloseShiftPage() {
     const getTotalKasbon = () => kasbon.reduce((sum, k) => sum + (Number(k.amount) || 0), 0);
     const getCashExpenseTotal = () =>
         (structuredExpenses['CASH'] || []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const getQrisExpenseTotal = () =>
+        (structuredExpenses['QRIS'] || []).reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
     const getTotalKasbonToko = () =>
         kasbon.filter(k => !k.source || k.source === 'Kas Toko')
               .reduce((sum, k) => sum + (Number(k.amount) || 0), 0);
@@ -304,12 +306,14 @@ export default function CloseShiftPage() {
     let grossAll = (shiftData?.grossCash || 0) + (shiftData?.grossQris || 0);
     Object.values(shiftData?.grossBankIncomes || {}).forEach((v: any) => grossAll += v);
 
-    // Adjusted QRIS target (real-time from payment exchanges)
-    const adjustedExpectedQris = expectedQris + paymentExchanges.reduce((sum, ex) => {
-        if (ex.to === 'QRIS') return sum + (Number(ex.amount) || 0);
-        if (ex.from === 'QRIS') return sum - (Number(ex.amount) || 0);
-        return sum;
-    }, 0);
+    // Adjusted QRIS target (real-time: expenses + payment exchanges)
+    const adjustedExpectedQris = expectedQris
+        - getQrisExpenseTotal()
+        + paymentExchanges.reduce((sum, ex) => {
+            if (ex.to === 'QRIS') return sum + (Number(ex.amount) || 0);
+            if (ex.from === 'QRIS') return sum - (Number(ex.amount) || 0);
+            return sum;
+        }, 0);
 
     // Net effects on non-system payment methods (Dana, GoPay, OVO, etc.) from exchanges
     const nonSystemExchangeEffects: Record<string, number> = {};
@@ -326,10 +330,11 @@ export default function CloseShiftPage() {
 
     const SHIFT_OPTIONS = ['Shift Pagi', 'Shift Siang', 'Long Shift'];
 
-    // Metode pengeluaran: bank-bank dulu, Cash terakhir
+    // Metode pengeluaran: QRIS dulu, lalu bank-bank, Cash terakhir
     const expenseMethods = [
-        ...Object.keys(structuredExpenses).filter(m => m !== 'CASH'),
-        'CASH'
+        ...Object.keys(structuredExpenses).filter(m => m !== 'CASH' && m !== 'QRIS'),
+        ...(structuredExpenses['QRIS'] !== undefined ? ['QRIS'] : []),
+        'CASH',
     ];
 
     return (
@@ -622,7 +627,7 @@ export default function CloseShiftPage() {
                                     <div key={method} className="space-y-2">
                                         <div className="flex items-center justify-between">
                                             <p className="font-semibold text-slate-700 text-sm">
-                                                {method === 'CASH' ? '💵' : '💳'} Pengeluaran {method}
+                                                {method === 'CASH' ? '💵' : method === 'QRIS' ? '📱' : '💳'} Pengeluaran {method}
                                             </p>
                                             <Button
                                                 type="button" variant="outline" size="sm"

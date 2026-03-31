@@ -311,7 +311,8 @@ export class ReportsService {
             for (const [method, items] of Object.entries(dto.structuredExpenses)) {
                 if (!items || items.length === 0) continue;
                 const isCash = method === 'CASH';
-                const bank = isCash ? null : activeBanks.find((b: any) => b.bankName === method);
+                const isQris = method === 'QRIS';
+                const bank = (isCash || isQris) ? null : activeBanks.find((b: any) => b.bankName === method);
                 for (const item of items) {
                     if (!item.name || !item.amount || Number(item.amount) <= 0) continue;
                     await this.prisma.cashflow.create({
@@ -320,7 +321,7 @@ export class ReportsService {
                             category: item.name,
                             amount: Number(item.amount),
                             note: `Pengeluaran shift ${dto.shiftName || ''} — ${item.name}`,
-                            paymentMethod: isCash ? 'CASH' : 'BANK_TRANSFER',
+                            paymentMethod: isCash ? 'CASH' : isQris ? 'QRIS' : 'BANK_TRANSFER',
                             bankAccountId: bank?.id || null,
                             date: new Date(dto.closedAt),
                         } as any,
@@ -574,8 +575,22 @@ export class ReportsService {
             - totalKasbonToko
             + exchangeCashEffect;
 
+        const totalQrisExpenses = structuredExpenses?.['QRIS']
+            ? structuredExpenses['QRIS'].reduce((s, i) => s + Number(i.amount), 0)
+            : 0;
+        const exchangeQrisEffect = paymentExchanges.reduce((sum, ex) => {
+            if (ex.to === 'QRIS') return sum + ex.amount;
+            if (ex.from === 'QRIS') return sum - ex.amount;
+            return sum;
+        }, 0);
+        const saldoQrisBersih = Number(shift.actualQris) - totalQrisExpenses + exchangeQrisEffect;
+
         msg += `\nCash real : ${formatRp(Number(shift.actualCash))}\n`;
         msg += `Saldo Kas Bersih : ${formatRp(saldoKasBersih)}\n`;
+        if (totalQrisExpenses > 0 || exchangeQrisEffect !== 0) {
+            msg += `QRIS real : ${formatRp(Number(shift.actualQris))}\n`;
+            msg += `Saldo QRIS Bersih : ${formatRp(saldoQrisBersih)}\n`;
+        }
         msg += `===============================\n\n`;
 
         // Adjust target saldo rekening dengan pemasukan tambahan + pertukaran metode
