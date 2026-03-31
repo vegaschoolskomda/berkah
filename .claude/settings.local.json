@@ -33,7 +33,8 @@
       "Bash(find D:FAISALappdevcomprehensive-pos-web-application/backend/src/settings -type f -name *.ts -o -name *.js)",
       "Bash(npm install:*)",
       "Read(//backend/**)",
-      "Bash(ls -la /backend)"
+      "Bash(ls -la /backend)",
+      "Bash(sqlite3 /dev/null \"SELECT name FROM sqlite_master;\")"
     ]
   }
 }

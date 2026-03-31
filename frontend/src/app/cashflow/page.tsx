@@ -4,13 +4,17 @@ import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     Plus, ArrowDownRight, ArrowUpRight, ArrowRightLeft, Loader2,
-    Pencil, Trash2, TrendingUp, BarChart3, Download, Filter, X, Store
+    Pencil, Trash2, TrendingUp, BarChart3, Download, Filter, X, Store,
+    Clock, CheckCircle2, XCircle, AlertTriangle,
 } from "lucide-react";
 import {
     getCashflows, createCashflow, updateCashflow, deleteCashflow,
     getCashflowMonthlyTrend, getCashflowCategoryBreakdown, getCashflowPlatformBreakdown,
     getBankAccounts,
+    submitCashflowRequest, getPendingRequests, getMyRequests, approveRequest, rejectRequest,
+    type CashflowChangeRequest,
 } from "@/lib/api";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
 import dayjs from "dayjs";
 import {
     AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -158,8 +162,222 @@ function EditModal({ entry, bankAccounts, onClose, onSave, isPending }: {
     );
 }
 
+// --- Submit Request Modal (for cashier) ---
+function SubmitRequestModal({ entry, type, bankAccounts, onClose, onSubmit, isPending }: {
+    entry: CashflowEntry;
+    type: 'EDIT' | 'DELETE';
+    bankAccounts: { id: number; bankName: string; accountNumber: string }[];
+    onClose: () => void;
+    onSubmit: (payload: Record<string, any> | undefined, note: string) => void;
+    isPending?: boolean;
+}) {
+    const [category, setCategory] = useState(entry.category);
+    const [amount, setAmount] = useState(parseFloat(entry.amount).toString());
+    const [editNote, setEditNote] = useState(entry.note ?? '');
+    const [platformSource, setPlatformSource] = useState(entry.platformSource ?? 'POS (Offline)');
+    const [customPlatform, setCustomPlatform] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState<string>(entry.paymentMethod ?? 'CASH');
+    const [bankAccountId, setBankAccountId] = useState<number | ''>(
+        entry.bankAccount ? (bankAccounts.find(b => b.bankName === entry.bankAccount?.bankName)?.id ?? '') : ''
+    );
+    const [requesterNote, setRequesterNote] = useState('');
+    const categories = entry.type === 'INCOME' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (type === 'DELETE') {
+            onSubmit(undefined, requesterNote);
+        } else {
+            const finalPlatform = entry.type === 'INCOME'
+                ? (platformSource === 'Lainnya' ? (customPlatform || 'Lainnya') : platformSource)
+                : null;
+            onSubmit({
+                category, amount: parseFloat(amount), note: editNote, platformSource: finalPlatform,
+                paymentMethod,
+                bankAccountId: paymentMethod === 'BANK_TRANSFER' && bankAccountId ? bankAccountId : null,
+            }, requesterNote);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-card w-full max-w-md rounded-xl border border-border shadow-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div className="px-6 py-4 border-b border-border flex justify-between items-center">
+                    <h3 className="font-semibold text-foreground">
+                        {type === 'DELETE' ? 'Kirim Permintaan Hapus' : 'Kirim Permintaan Edit'}
+                    </h3>
+                    <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+                </div>
+                <div className="px-6 py-3 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-200 dark:border-amber-800">
+                    <p className="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5 shrink-0" />
+                        Permintaan ini akan dikirim ke manajer untuk disetujui
+                    </p>
+                </div>
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                    {type === 'DELETE' ? (
+                        <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-4">
+                            <p className="text-sm font-medium text-foreground mb-1">Konfirmasi Hapus:</p>
+                            <p className="text-sm text-muted-foreground">{entry.category} — {fmt(parseFloat(entry.amount))}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{dayjs(entry.date).format('DD MMM YYYY HH:mm')}</p>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-foreground">Kategori</label>
+                                <select value={category} onChange={e => setCategory(e.target.value)} className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                                    {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                                    {!categories.includes(category) && <option value={category}>{category}</option>}
+                                </select>
+                            </div>
+                            {entry.type === 'INCOME' && (
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-foreground">Platform Sumber</label>
+                                    <select value={platformSource} onChange={e => setPlatformSource(e.target.value)} className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                                        {PLATFORM_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                                    </select>
+                                    {platformSource === 'Lainnya' && (
+                                        <input type="text" value={customPlatform} onChange={e => setCustomPlatform(e.target.value)} placeholder="Nama platform..." className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                                    )}
+                                </div>
+                            )}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-foreground">Metode Pembayaran</label>
+                                <div className="flex gap-2">
+                                    {(['CASH', 'QRIS', 'BANK_TRANSFER'] as const).map(m => (
+                                        <button type="button" key={m}
+                                            onClick={() => { setPaymentMethod(m); if (m !== 'BANK_TRANSFER') setBankAccountId(''); }}
+                                            className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${paymentMethod === m ? 'bg-primary/10 text-primary border-primary/30' : 'border-input text-muted-foreground hover:bg-muted/50'}`}>
+                                            {m === 'CASH' ? '💵 Tunai' : m === 'QRIS' ? '📱 QRIS' : '🏦 Transfer'}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            {paymentMethod === 'BANK_TRANSFER' && bankAccounts.length > 0 && (
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-foreground">Rekening</label>
+                                    <select value={bankAccountId} onChange={e => setBankAccountId(Number(e.target.value) || '')} className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                                        <option value="">-- Pilih Rekening --</option>
+                                        {bankAccounts.map(b => <option key={b.id} value={b.id}>{b.bankName} — {b.accountNumber}</option>)}
+                                    </select>
+                                </div>
+                            )}
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-foreground">Nominal (Rp)</label>
+                                <input required type="number" min="0" value={amount} onChange={e => setAmount(e.target.value)} className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+                            </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-foreground">Catatan</label>
+                                <textarea rows={2} value={editNote} onChange={e => setEditNote(e.target.value)} className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" />
+                            </div>
+                        </>
+                    )}
+                    <div className="space-y-2 pt-2 border-t border-border">
+                        <label className="text-sm font-medium text-foreground">Alasan / Catatan untuk Manajer <span className="text-muted-foreground font-normal">(opsional)</span></label>
+                        <textarea rows={2} value={requesterNote} onChange={e => setRequesterNote(e.target.value)} placeholder="Contoh: Salah input nominal..." className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" />
+                    </div>
+                    <div className="pt-2 flex justify-end gap-3">
+                        <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground border border-input hover:bg-muted/50 transition-colors">Batal</button>
+                        <button type="submit" disabled={isPending} className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50">
+                            {isPending ? 'Mengirim...' : 'Kirim Permintaan'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
+// --- Review Modal (for manager) ---
+function ReviewModal({ request, note, setNote, onClose, onApprove, onReject, isApproving, isRejecting }: {
+    request: CashflowChangeRequest;
+    note: string;
+    setNote: (v: string) => void;
+    onClose: () => void;
+    onApprove: () => void;
+    onReject: () => void;
+    isApproving?: boolean;
+    isRejecting?: boolean;
+}) {
+    const cf = request.cashflow;
+    const payload = request.payload;
+    return (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-card w-full max-w-md rounded-xl border border-border shadow-lg overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div className="px-6 py-4 border-b border-border flex justify-between items-center">
+                    <h3 className="font-semibold text-foreground">Tinjau Permintaan</h3>
+                    <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+                </div>
+                <div className="p-6 space-y-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <span>Dari:</span>
+                        <span className="font-medium text-foreground">{request.requester.name || request.requester.email}</span>
+                        <span className={`ml-auto px-2 py-0.5 rounded-full text-xs font-medium ${request.type === 'DELETE' ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
+                            {request.type === 'DELETE' ? 'Hapus' : 'Edit'}
+                        </span>
+                    </div>
+
+                    <div className="bg-muted/40 rounded-lg p-3 space-y-1.5">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Data Saat Ini</p>
+                        <p className="text-sm font-medium">{cf.category} — {fmt(parseFloat(cf.amount))}</p>
+                        <p className="text-xs text-muted-foreground">{cf.type === 'INCOME' ? 'Pemasukan' : 'Pengeluaran'} • {dayjs(cf.date).format('DD MMM YYYY HH:mm')}</p>
+                        {cf.note && <p className="text-xs text-muted-foreground">Catatan: {cf.note}</p>}
+                    </div>
+
+                    {request.type === 'EDIT' && payload && (
+                        <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-1.5">
+                            <p className="text-xs font-medium text-primary uppercase tracking-wide">Perubahan yang Diusulkan</p>
+                            {payload.category && payload.category !== cf.category && (
+                                <p className="text-sm"><span className="text-muted-foreground">Kategori:</span> <span className="line-through text-muted-foreground">{cf.category}</span> → <span className="font-medium">{payload.category}</span></p>
+                            )}
+                            {payload.amount !== undefined && parseFloat(payload.amount) !== parseFloat(cf.amount) && (
+                                <p className="text-sm"><span className="text-muted-foreground">Nominal:</span> <span className="line-through text-muted-foreground">{fmt(parseFloat(cf.amount))}</span> → <span className="font-medium">{fmt(parseFloat(payload.amount))}</span></p>
+                            )}
+                            {payload.note !== undefined && payload.note !== cf.note && (
+                                <p className="text-sm"><span className="text-muted-foreground">Catatan:</span> {payload.note || '-'}</p>
+                            )}
+                            {payload.paymentMethod && (
+                                <p className="text-sm"><span className="text-muted-foreground">Metode:</span> {payload.paymentMethod}</p>
+                            )}
+                        </div>
+                    )}
+
+                    {request.type === 'DELETE' && (
+                        <div className="bg-destructive/5 border border-destructive/20 rounded-lg p-3">
+                            <p className="text-sm text-destructive font-medium">Permintaan menghapus entry di atas secara permanen.</p>
+                        </div>
+                    )}
+
+                    {request.requesterNote && (
+                        <div className="text-sm">
+                            <span className="text-muted-foreground">Alasan kasir: </span>
+                            <span className="italic">{request.requesterNote}</span>
+                        </div>
+                    )}
+
+                    <div className="space-y-2 pt-2 border-t border-border">
+                        <label className="text-sm font-medium text-foreground">Catatan Manajer <span className="text-muted-foreground font-normal">(opsional untuk setujui, wajib untuk tolak)</span></label>
+                        <textarea rows={2} value={note} onChange={e => setNote(e.target.value)} placeholder="Catatan..." className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none" />
+                    </div>
+
+                    <div className="flex justify-end gap-3">
+                        <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground border border-input hover:bg-muted/50 transition-colors">Batal</button>
+                        <button onClick={onReject} disabled={isRejecting || !note.trim()} className="px-4 py-2 rounded-lg text-sm font-medium bg-destructive text-destructive-foreground hover:bg-destructive/90 transition-colors disabled:opacity-50">
+                            {isRejecting ? 'Menolak...' : 'Tolak'}
+                        </button>
+                        <button onClick={onApprove} disabled={isApproving} className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50">
+                            {isApproving ? 'Menyetujui...' : 'Setujui'}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 export default function CashflowPage() {
     const queryClient = useQueryClient();
+    const { isManager } = useCurrentUser();
 
     // Period filter
     const [period, setPeriod] = useState<PeriodKey>('this_month');
@@ -185,6 +403,13 @@ export default function CashflowPage() {
     // Edit + delete
     const [editEntry, setEditEntry] = useState<CashflowEntry | null>(null);
     const [deleteId, setDeleteId] = useState<number | null>(null);
+
+    // Approval request state
+    const [requestEntry, setRequestEntry] = useState<CashflowEntry | null>(null);
+    const [requestType, setRequestType] = useState<'EDIT' | 'DELETE'>('EDIT');
+    const [reviewingRequest, setReviewingRequest] = useState<CashflowChangeRequest | null>(null);
+    const [reviewNote, setReviewNote] = useState('');
+    const [requestNote, setRequestNote] = useState('');
 
     // Filter
     const [filterType, setFilterType] = useState<'ALL' | 'INCOME' | 'EXPENSE'>('ALL');
@@ -215,6 +440,34 @@ export default function CashflowPage() {
         queryClient.invalidateQueries({ queryKey: ['cashflow-trend'] });
         queryClient.invalidateQueries({ queryKey: ['cashflow-platforms'] });
     };
+
+    const { data: pendingRequests = [], refetch: refetchPending } = useQuery({
+        queryKey: ['cashflow-requests-pending'],
+        queryFn: getPendingRequests,
+        enabled: isManager,
+        refetchInterval: isManager ? 30_000 : false,
+    });
+
+    const { data: myRequests = [], refetch: refetchMine } = useQuery({
+        queryKey: ['cashflow-requests-mine'],
+        queryFn: getMyRequests,
+        enabled: !isManager,
+    });
+
+    const submitRequestMutation = useMutation({
+        mutationFn: submitCashflowRequest,
+        onSuccess: () => { setRequestEntry(null); refetchMine(); },
+    });
+
+    const approveMutation = useMutation({
+        mutationFn: ({ id, note }: { id: number; note?: string }) => approveRequest(id, note),
+        onSuccess: () => { setReviewingRequest(null); setReviewNote(''); refetchPending(); invalidateAll(); },
+    });
+
+    const rejectMutation = useMutation({
+        mutationFn: ({ id, note }: { id: number; note: string }) => rejectRequest(id, note),
+        onSuccess: () => { setReviewingRequest(null); setReviewNote(''); refetchPending(); },
+    });
 
     const createMutation = useMutation({
         mutationFn: createCashflow,
@@ -456,6 +709,68 @@ export default function CashflowPage() {
                 )}
             </div>
 
+            {/* Manager: pending requests panel */}
+            {isManager && pendingRequests.length > 0 && (
+                <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-300 dark:border-amber-700 p-5 space-y-3">
+                    <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5 text-amber-600" />
+                        <h3 className="font-semibold text-amber-800 dark:text-amber-300">Permintaan Persetujuan ({pendingRequests.length})</h3>
+                    </div>
+                    <div className="space-y-2">
+                        {pendingRequests.map(req => (
+                            <div key={req.id} className="flex items-center justify-between bg-white dark:bg-card rounded-lg border border-amber-200 dark:border-amber-800 px-4 py-3 gap-3">
+                                <div className="min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className={`text-xs font-bold px-1.5 py-0.5 rounded ${req.type === 'DELETE' ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'}`}>
+                                            {req.type === 'DELETE' ? 'HAPUS' : 'EDIT'}
+                                        </span>
+                                        <span className="text-sm font-medium text-foreground">{req.cashflow.category}</span>
+                                        <span className="text-sm text-muted-foreground">{fmt(parseFloat(req.cashflow.amount))}</span>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground mt-0.5">Dari: {req.requester.name || req.requester.email} • {dayjs(req.createdAt).format('DD MMM HH:mm')}</p>
+                                </div>
+                                <button
+                                    onClick={() => { setReviewingRequest(req); setReviewNote(''); }}
+                                    className="shrink-0 px-3 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-medium hover:bg-amber-700 transition-colors">
+                                    Tinjau
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            {/* Cashier: my requests status */}
+            {!isManager && myRequests.length > 0 && (
+                <div className="bg-card rounded-xl border border-border shadow-sm p-5 space-y-3">
+                    <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <h3 className="font-semibold text-foreground">Status Permintaan Saya</h3>
+                    </div>
+                    <div className="space-y-2">
+                        {myRequests.slice(0, 5).map(req => (
+                            <div key={req.id} className="flex items-center justify-between gap-3 text-sm">
+                                <div className="min-w-0">
+                                    <span className="font-medium text-foreground">{req.cashflow.category}</span>
+                                    <span className="text-muted-foreground ml-2">{req.type === 'DELETE' ? 'Hapus' : 'Edit'}</span>
+                                    {req.reviewerNote && <p className="text-xs text-muted-foreground italic mt-0.5">Catatan: {req.reviewerNote}</p>}
+                                </div>
+                                <span className={`shrink-0 flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${
+                                    req.status === 'PENDING' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                                    req.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' :
+                                    'bg-destructive/10 text-destructive'
+                                }`}>
+                                    {req.status === 'PENDING' && <Clock className="h-3 w-3" />}
+                                    {req.status === 'APPROVED' && <CheckCircle2 className="h-3 w-3" />}
+                                    {req.status === 'REJECTED' && <XCircle className="h-3 w-3" />}
+                                    {req.status === 'PENDING' ? 'Menunggu' : req.status === 'APPROVED' ? 'Disetujui' : 'Ditolak'}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* History list */}
             <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-border flex justify-between items-center flex-wrap gap-3">
@@ -508,17 +823,41 @@ export default function CashflowPage() {
                                             {entry.type === 'INCOME' ? '+' : '-'} {fmt(parseFloat(entry.amount))}
                                         </p>
                                     </div>
-                                    {/* Only allow edit/delete for manual entries */}
-                                    {entry.userId && (
-                                        <div className="flex gap-1">
-                                            <button onClick={() => setEditEntry(entry)} className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors">
-                                                <Pencil className="h-4 w-4" />
-                                            </button>
-                                            <button onClick={() => setDeleteId(entry.id)} className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
-                                        </div>
-                                    )}
+                                    {/* Edit/delete: manager=direct, cashier=request */}
+                                    {entry.userId && (() => {
+                                        const hasPending = !isManager && myRequests.some(
+                                            r => r.cashflowId === entry.id && r.status === 'PENDING'
+                                        );
+                                        if (hasPending) {
+                                            return (
+                                                <span className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-full border border-amber-200 dark:border-amber-800">
+                                                    <Clock className="h-3 w-3" /> Menunggu
+                                                </span>
+                                            );
+                                        }
+                                        return (
+                                            <div className="flex gap-1">
+                                                <button
+                                                    onClick={() => {
+                                                        if (isManager) { setEditEntry(entry); }
+                                                        else { setRequestEntry(entry); setRequestType('EDIT'); }
+                                                    }}
+                                                    className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                                                    title={isManager ? 'Edit' : 'Ajukan perubahan'}>
+                                                    <Pencil className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        if (isManager) { setDeleteId(entry.id); }
+                                                        else { setRequestEntry(entry); setRequestType('DELETE'); }
+                                                    }}
+                                                    className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                                    title={isManager ? 'Hapus' : 'Ajukan hapus'}>
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         ))
@@ -629,7 +968,7 @@ export default function CashflowPage() {
                 />
             )}
 
-            {/* Delete confirm */}
+            {/* Delete confirm (manager only) */}
             {deleteId !== null && (
                 <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-card w-full max-w-sm rounded-xl border border-border shadow-lg p-6 animate-in fade-in zoom-in-95 duration-200">
@@ -643,6 +982,37 @@ export default function CashflowPage() {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {/* Cashier: Submit Request Modal */}
+            {requestEntry && (
+                <SubmitRequestModal
+                    entry={requestEntry}
+                    type={requestType}
+                    bankAccounts={bankAccounts as any[]}
+                    onClose={() => setRequestEntry(null)}
+                    onSubmit={(payload, note) => submitRequestMutation.mutate({
+                        cashflowId: requestEntry.id,
+                        type: requestType,
+                        payload: payload ?? undefined,
+                        requesterNote: note || undefined,
+                    })}
+                    isPending={submitRequestMutation.isPending}
+                />
+            )}
+
+            {/* Manager: Review Modal */}
+            {reviewingRequest && (
+                <ReviewModal
+                    request={reviewingRequest}
+                    note={reviewNote}
+                    setNote={setReviewNote}
+                    onClose={() => { setReviewingRequest(null); setReviewNote(''); }}
+                    onApprove={() => approveMutation.mutate({ id: reviewingRequest.id, note: reviewNote || undefined })}
+                    onReject={() => rejectMutation.mutate({ id: reviewingRequest.id, note: reviewNote })}
+                    isApproving={approveMutation.isPending}
+                    isRejecting={rejectMutation.isPending}
+                />
             )}
         </div>
     );

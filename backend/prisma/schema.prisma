@@ -60,6 +60,8 @@ model User {
 
   role      Role?      @relation(fields: [roleId], references: [id])
   cashflows Cashflow[]
+  cashflowRequests  CashflowChangeRequest[] @relation("CashflowRequests")
+  cashflowReviews   CashflowChangeRequest[] @relation("CashflowReviews")
 
   @@map("users")
 }
@@ -289,10 +291,43 @@ model Cashflow {
   createdAt     DateTime?      @default(now()) @map("created_at")
   updatedAt     DateTime?      @default(now()) @updatedAt @map("updated_at")
 
-  user        User?        @relation(fields: [userId], references: [id])
-  bankAccount BankAccount? @relation(fields: [bankAccountId], references: [id])
+  user           User?        @relation(fields: [userId], references: [id])
+  bankAccount    BankAccount? @relation(fields: [bankAccountId], references: [id])
+  changeRequests CashflowChangeRequest[]
 
   @@map("cashflows")
+}
+
+enum ChangeRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ChangeRequestType {
+  EDIT
+  DELETE
+}
+
+model CashflowChangeRequest {
+  id            Int                  @id @default(autoincrement())
+  cashflowId    Int                  @map("cashflow_id")
+  requesterId   Int                  @map("requester_id")
+  type          ChangeRequestType
+  status        ChangeRequestStatus  @default(PENDING)
+  payload       Json?
+  requesterNote String?              @map("requester_note") @db.Text
+  reviewerNote  String?              @map("reviewer_note")  @db.Text
+  reviewedBy    Int?                 @map("reviewed_by")
+  reviewedAt    DateTime?            @map("reviewed_at")
+  createdAt     DateTime             @default(now()) @map("created_at")
+  updatedAt     DateTime             @default(now()) @updatedAt @map("updated_at")
+
+  cashflow  Cashflow @relation(fields: [cashflowId], references: [id], onDelete: Cascade)
+  requester User     @relation("CashflowRequests", fields: [requesterId], references: [id])
+  reviewer  User?    @relation("CashflowReviews",  fields: [reviewedBy],  references: [id])
+
+  @@map("cashflow_change_requests")
 }
 
 enum InvoiceStatus {

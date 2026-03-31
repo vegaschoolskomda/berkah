@@ -22,3 +22,44 @@ export const getCashflowPlatformBreakdown = async (startDate?: string, endDate?:
     if (endDate) params.append('endDate', endDate);
     return (await api.get(`/cashflow/platform-breakdown?${params.toString()}`)).data;
 };
+
+// Auth
+export const getMe = async () => (await api.get('/auth/me')).data as {
+    id: number;
+    name: string | null;
+    email: string;
+    role: { id: number; name: string } | null;
+};
+
+// Cashflow Change Requests
+export type CashflowChangeRequest = {
+    id: number;
+    cashflowId: number;
+    type: 'EDIT' | 'DELETE';
+    status: 'PENDING' | 'APPROVED' | 'REJECTED';
+    payload: Record<string, any> | null;
+    requesterNote: string | null;
+    reviewerNote: string | null;
+    createdAt: string;
+    requester: { id: number; name: string | null; email: string };
+    cashflow: { id: number; type: string; category: string; amount: string; note: string | null; date: string };
+};
+
+export const submitCashflowRequest = async (body: {
+    cashflowId: number;
+    type: 'EDIT' | 'DELETE';
+    payload?: Record<string, any>;
+    requesterNote?: string;
+}) => (await api.post('/cashflow-requests', body)).data;
+
+export const getPendingRequests = async () =>
+    (await api.get('/cashflow-requests/pending')).data as CashflowChangeRequest[];
+
+export const getMyRequests = async () =>
+    (await api.get('/cashflow-requests/mine')).data as CashflowChangeRequest[];
+
+export const approveRequest = async (id: number, reviewerNote?: string) =>
+    (await api.patch(`/cashflow-requests/${id}/approve`, { reviewerNote })).data;
+
+export const rejectRequest = async (id: number, reviewerNote: string) =>
+    (await api.patch(`/cashflow-requests/${id}/reject`, { reviewerNote })).data;
