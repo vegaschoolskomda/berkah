@@ -8,7 +8,8 @@ import {
 } from "lucide-react";
 import {
     getCashflows, createCashflow, updateCashflow, deleteCashflow,
-    getCashflowMonthlyTrend, getCashflowCategoryBreakdown, getCashflowPlatformBreakdown
+    getCashflowMonthlyTrend, getCashflowCategoryBreakdown, getCashflowPlatformBreakdown,
+    getBankAccounts,
 } from "@/lib/api";
 import dayjs from "dayjs";
 import {
@@ -27,6 +28,8 @@ type CashflowEntry = {
     date: string;
     userId?: number | null;
     user?: { email: string; name?: string } | null;
+    paymentMethod?: string | null;
+    bankAccount?: { bankName: string; accountNumber: string } | null;
 };
 
 type PeriodKey = 'this_month' | 'last_3_months' | 'this_year' | 'all';
@@ -58,12 +61,22 @@ const fmtShort = (n: number) => {
 };
 
 // --- Edit Modal ---
-function EditModal({ entry, onClose, onSave, isPending }: { entry: CashflowEntry; onClose: () => void; onSave: (id: number, data: any) => void; isPending?: boolean }) {
+function EditModal({ entry, bankAccounts, onClose, onSave, isPending }: {
+    entry: CashflowEntry;
+    bankAccounts: { id: number; bankName: string; accountNumber: string }[];
+    onClose: () => void;
+    onSave: (id: number, data: any) => void;
+    isPending?: boolean;
+}) {
     const [category, setCategory] = useState(entry.category);
     const [amount, setAmount] = useState(parseFloat(entry.amount).toString());
     const [note, setNote] = useState(entry.note ?? '');
     const [platformSource, setPlatformSource] = useState(entry.platformSource ?? 'POS (Offline)');
     const [customPlatform, setCustomPlatform] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState<string>(entry.paymentMethod ?? 'CASH');
+    const [bankAccountId, setBankAccountId] = useState<number | ''>(entry.bankAccount
+        ? (bankAccounts.find(b => b.bankName === entry.bankAccount?.bankName)?.id ?? '')
+        : '');
     const categories = entry.type === 'INCOME' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -71,7 +84,11 @@ function EditModal({ entry, onClose, onSave, isPending }: { entry: CashflowEntry
         const finalPlatform = entry.type === 'INCOME'
             ? (platformSource === 'Lainnya' ? (customPlatform || 'Lainnya') : platformSource)
             : null;
-        onSave(entry.id, { category, amount: parseFloat(amount), note, platformSource: finalPlatform });
+        onSave(entry.id, {
+            category, amount: parseFloat(amount), note, platformSource: finalPlatform,
+            paymentMethod,
+            bankAccountId: paymentMethod === 'BANK_TRANSFER' && bankAccountId ? bankAccountId : null,
+        });
     };
 
     return (
@@ -96,14 +113,31 @@ function EditModal({ entry, onClose, onSave, isPending }: { entry: CashflowEntry
                                 {PLATFORM_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
                             </select>
                             {platformSource === 'Lainnya' && (
-                                <input
-                                    type="text"
-                                    value={customPlatform}
-                                    onChange={e => setCustomPlatform(e.target.value)}
-                                    placeholder="Nama platform..."
-                                    className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                />
+                                <input type="text" value={customPlatform} onChange={e => setCustomPlatform(e.target.value)}
+                                    placeholder="Nama platform..." className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
                             )}
+                        </div>
+                    )}
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-foreground">Metode Pembayaran</label>
+                        <div className="flex gap-2">
+                            {(['CASH', 'QRIS', 'BANK_TRANSFER'] as const).map(m => (
+                                <button type="button" key={m}
+                                    onClick={() => { setPaymentMethod(m); if (m !== 'BANK_TRANSFER') setBankAccountId(''); }}
+                                    className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${paymentMethod === m ? 'bg-primary/10 text-primary border-primary/30' : 'border-input text-muted-foreground hover:bg-muted/50'}`}>
+                                    {m === 'CASH' ? '💵 Tunai' : m === 'QRIS' ? '📱 QRIS' : '🏦 Transfer'}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    {paymentMethod === 'BANK_TRANSFER' && bankAccounts.length > 0 && (
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">Rekening</label>
+                            <select value={bankAccountId} onChange={e => setBankAccountId(Number(e.target.value) || '')}
+                                className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                                <option value="">-- Pilih Rekening --</option>
+                                {bankAccounts.map(b => <option key={b.id} value={b.id}>{b.bankName} — {b.accountNumber}</option>)}
+                            </select>
                         </div>
                     )}
                     <div className="space-y-2">
@@ -131,6 +165,11 @@ export default function CashflowPage() {
     const [period, setPeriod] = useState<PeriodKey>('this_month');
     const { startDate, endDate } = getPeriodDates(period);
 
+    const { data: bankAccounts = [] } = useQuery({
+        queryKey: ['bank-accounts'],
+        queryFn: getBankAccounts,
+    });
+
     // Add entry dialog
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [type, setType] = useState<'INCOME' | 'EXPENSE'>('INCOME');
@@ -140,6 +179,8 @@ export default function CashflowPage() {
     const [note, setNote] = useState('');
     const [platformSource, setPlatformSource] = useState('POS (Offline)');
     const [customPlatform, setCustomPlatform] = useState('');
+    const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'QRIS' | 'BANK_TRANSFER'>('CASH');
+    const [bankAccountId, setBankAccountId] = useState<number | ''>('');
 
     // Edit + delete
     const [editEntry, setEditEntry] = useState<CashflowEntry | null>(null);
@@ -186,6 +227,8 @@ export default function CashflowPage() {
             setNote('');
             setPlatformSource('POS (Offline)');
             setCustomPlatform('');
+            setPaymentMethod('CASH');
+            setBankAccountId('');
         },
     });
 
@@ -212,7 +255,12 @@ export default function CashflowPage() {
         const finalPlatform = type === 'INCOME'
             ? (platformSource === 'Lainnya' ? (customPlatform || 'Lainnya') : platformSource)
             : null;
-        createMutation.mutate({ type, category: finalCategory, amount: parseFloat(amount), note, platformSource: finalPlatform });
+        createMutation.mutate({
+            type, category: finalCategory, amount: parseFloat(amount), note,
+            platformSource: finalPlatform,
+            paymentMethod,
+            bankAccountId: paymentMethod === 'BANK_TRANSFER' && bankAccountId ? bankAccountId : null,
+        });
     };
 
     const entries: CashflowEntry[] = data?.list ?? [];
@@ -442,6 +490,13 @@ export default function CashflowPage() {
                                             {entry.type === 'INCOME' && entry.platformSource && (
                                                 <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">{entry.platformSource}</span>
                                             )}
+                                            {entry.paymentMethod && (
+                                                <span className="text-xs bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300 px-1.5 py-0.5 rounded-full">
+                                                    {entry.paymentMethod === 'CASH' ? '💵 Tunai'
+                                                        : entry.paymentMethod === 'QRIS' ? '📱 QRIS'
+                                                        : `🏦 ${entry.bankAccount?.bankName || 'Transfer'}`}
+                                                </span>
+                                            )}
                                         </div>
                                         <p className="text-sm text-muted-foreground truncate">{dayjs(entry.date).format('DD MMM YYYY HH:mm')} &bull; {entry.note || '-'}</p>
                                         <p className="text-xs text-muted-foreground">Oleh: {entry.user?.email ?? 'System'}</p>
@@ -503,6 +558,30 @@ export default function CashflowPage() {
                                     <input required type="text" value={customCategory} onChange={e => setCustomCategory(e.target.value)} placeholder="Nama kategori..." className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
                                 )}
                             </div>
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium text-foreground">Metode Pembayaran</label>
+                                <div className="flex gap-2">
+                                    {(['CASH', 'QRIS', 'BANK_TRANSFER'] as const).map(m => (
+                                        <button type="button" key={m}
+                                            onClick={() => { setPaymentMethod(m); if (m !== 'BANK_TRANSFER') setBankAccountId(''); }}
+                                            className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${paymentMethod === m ? 'bg-primary/10 text-primary border-primary/30' : 'border-input text-muted-foreground hover:bg-muted/50'}`}>
+                                            {m === 'CASH' ? '💵 Tunai' : m === 'QRIS' ? '📱 QRIS' : '🏦 Transfer'}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            {paymentMethod === 'BANK_TRANSFER' && (bankAccounts as any[]).length > 0 && (
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium text-foreground">Rekening</label>
+                                    <select value={bankAccountId} onChange={e => setBankAccountId(Number(e.target.value) || '')}
+                                        className="w-full bg-background border border-input rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+                                        <option value="">-- Pilih Rekening --</option>
+                                        {(bankAccounts as any[]).map((b: any) => (
+                                            <option key={b.id} value={b.id}>{b.bankName} — {b.accountNumber}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
                             {type === 'INCOME' && (
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium text-foreground">Platform Sumber</label>
@@ -543,6 +622,7 @@ export default function CashflowPage() {
             {editEntry && (
                 <EditModal
                     entry={editEntry}
+                    bankAccounts={bankAccounts as any[]}
                     onClose={() => setEditEntry(null)}
                     onSave={(id, data) => updateMutation.mutate({ id, data })}
                     isPending={updateMutation.isPending}

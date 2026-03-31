@@ -19,6 +19,8 @@ import Link from 'next/link';
 type ExpenseItem = { name: string; amount: number };
 // Pengeluaran dikelompokkan per metode: { "CASH": [...], "BCA": [...] }
 type StructuredExpenses = Record<string, ExpenseItem[]>;
+// Pemasukan tambahan langsung ke rekening dari luar POS
+type AdditionalIncomeItem = { bankName: string; amount: number; description: string };
 
 export default function CloseShiftPage() {
     const router = useRouter();
@@ -45,6 +47,7 @@ export default function CloseShiftPage() {
     const [setorKas, setSetorKas] = useState<{ bankName: string; amount: number }[]>([]);
     const [tarikTunai, setTarikTunai] = useState<{ bankName: string; amount: number }[]>([]);
     const [tukarTransferKeCash, setTukarTransferKeCash] = useState<number>(0);
+    const [additionalIncomes, setAdditionalIncomes] = useState<AdditionalIncomeItem[]>([]);
 
     // ─── State: Catatan & Bukti ──────────────────────────────────────────
     const [notes, setNotes] = useState('');
@@ -136,6 +139,17 @@ export default function CloseShiftPage() {
         kasbon.filter(k => !k.source || k.source === 'Kas Toko')
               .reduce((sum, k) => sum + (Number(k.amount) || 0), 0);
 
+    // ─── Helper: Pemasukan Tambahan Eksternal ────────────────────────────
+    const addAdditionalIncome = () =>
+        setAdditionalIncomes(prev => [...prev, { bankName: bankOptions[0] || '', amount: 0, description: '' }]);
+    const updateAdditionalIncome = (idx: number, field: keyof AdditionalIncomeItem, value: string | number) =>
+        setAdditionalIncomes(prev => prev.map((item, i) =>
+            i === idx ? { ...item, [field]: field === 'amount' ? Number(value) : value } : item));
+    const removeAdditionalIncome = (idx: number) =>
+        setAdditionalIncomes(prev => prev.filter((_, i) => i !== idx));
+    const getTotalAdditionalIncomes = () =>
+        additionalIncomes.reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+
     // ─── Helper: Setor Kas ───────────────────────────────────────────────
     const bankOptions = Object.keys(shiftData?.systemBankBalances || {});
     const addSetorKas = () => setSetorKas(prev => [...prev, { bankName: bankOptions[0] || '', amount: 0 }]);
@@ -165,7 +179,10 @@ export default function CloseShiftPage() {
         const base = shiftData?.systemBankBalances?.[bankName] || 0;
         const setor = setorKas.filter(s => s.bankName === bankName).reduce((sum, s) => sum + s.amount, 0);
         const tarik = tarikTunai.filter(s => s.bankName === bankName).reduce((sum, s) => sum + s.amount, 0);
-        return base + setor - tarik;
+        const additional = additionalIncomes
+            .filter(i => i.bankName === bankName)
+            .reduce((sum, i) => sum + (Number(i.amount) || 0), 0);
+        return base + setor - tarik + additional;
     };
 
     // ─── Helper: Format & Badge ──────────────────────────────────────────
@@ -214,6 +231,7 @@ export default function CloseShiftPage() {
         formData.append('kasbon', JSON.stringify(kasbon.filter(k => k.name && k.amount > 0)));
         formData.append('setorKas', JSON.stringify(setorKas.filter(s => s.bankName && s.amount > 0)));
         formData.append('tarikTunai', JSON.stringify(tarikTunai.filter(s => s.bankName && s.amount > 0)));
+        formData.append('additionalIncomes', JSON.stringify(additionalIncomes.filter(i => i.bankName && i.amount > 0)));
         formData.append('tukarTransferKeCash', String(tukarTransferKeCash || 0));
 
         files.forEach(file => formData.append('proofImages', file));
@@ -502,6 +520,75 @@ export default function CloseShiftPage() {
                                     <span className="text-slate-700">Total Pengeluaran</span>
                                     <span className="text-orange-600">{formatCurrency(getTotalExpenses())}</span>
                                 </div>
+                            </CardContent>
+                        </Card>
+
+                        {/* ── Kartu 3.5: Pemasukan Tambahan / Eksternal ── */}
+                        <Card className="border-t-4 border-t-green-500 border-slate-200">
+                            <CardHeader className="pb-3">
+                                <CardTitle className="text-base">4. Pemasukan Tambahan / Eksternal</CardTitle>
+                                <CardDescription>
+                                    Catat pemasukan yang masuk langsung ke rekening dari luar sistem POS
+                                    (transfer customer, Shopee/Tokopedia payout, GoPay payout, dll).
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-sm text-slate-500">Pemasukan ini akan dicatat sebagai Cashflow dan menambah target saldo rekening.</p>
+                                    <Button type="button" variant="outline" size="sm" className="h-7 text-xs gap-1" onClick={addAdditionalIncome} disabled={bankOptions.length === 0}>
+                                        <Plus className="w-3 h-3" /> Tambah
+                                    </Button>
+                                </div>
+                                {bankOptions.length === 0 && (
+                                    <p className="text-xs text-slate-400 italic pl-1">Tidak ada rekening bank aktif.</p>
+                                )}
+                                {additionalIncomes.length === 0 && bankOptions.length > 0 && (
+                                    <p className="text-xs text-slate-400 italic pl-1">Belum ada pemasukan tambahan</p>
+                                )}
+                                {additionalIncomes.map((item, idx) => (
+                                    <div key={idx} className="flex gap-2 items-center">
+                                        <span className="text-slate-400 text-sm w-5 text-right">{idx + 1}.</span>
+                                        <select
+                                            className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring w-32"
+                                            value={item.bankName}
+                                            onChange={(e) => updateAdditionalIncome(idx, 'bankName', e.target.value)}
+                                        >
+                                            {bankOptions.map(b => <option key={b} value={b}>{b}</option>)}
+                                        </select>
+                                        <Input
+                                            placeholder="Sumber (Shopee, Transfer, dll)"
+                                            className="flex-1 text-sm"
+                                            value={item.description}
+                                            onChange={(e) => updateAdditionalIncome(idx, 'description', e.target.value)}
+                                        />
+                                        <div className="relative w-36">
+                                            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 text-xs">Rp</span>
+                                            <Input
+                                                type="number" min="0"
+                                                className="pl-7 text-right text-sm"
+                                                value={item.amount || ''}
+                                                onChange={(e) => updateAdditionalIncome(idx, 'amount', e.target.value)}
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                        <Button type="button" variant="ghost" size="icon"
+                                            className="h-9 w-9 text-red-400 hover:text-red-600 hover:bg-red-50"
+                                            onClick={() => removeAdditionalIncome(idx)}>
+                                            <Trash2 className="w-4 h-4" />
+                                        </Button>
+                                    </div>
+                                ))}
+                                {additionalIncomes.length > 0 && (
+                                    <>
+                                        <div className="flex justify-between items-center pt-2 border-t font-semibold">
+                                            <span className="text-slate-700">Total Pemasukan Tambahan</span>
+                                            <span className="text-green-600">{formatCurrency(getTotalAdditionalIncomes())}</span>
+                                        </div>
+                                        <p className="text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1">
+                                            💡 Target saldo rekening tujuan otomatis bertambah sesuai pemasukan di atas.
+                                        </p>
+                                    </>
+                                )}
                             </CardContent>
                         </Card>
 

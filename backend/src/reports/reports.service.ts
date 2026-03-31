@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WhatsappService } from '../whatsapp/whatsapp.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { CloseShiftDto, StructuredExpenses } from './reports.controller';
+import { CloseShiftDto, StructuredExpenses, AdditionalIncomeItem } from './reports.controller';
 
 @Injectable()
 export class ReportsService {
@@ -282,8 +282,71 @@ export class ReportsService {
                 setorKas: dto.setorKas || [],
                 tarikTunai: dto.tarikTunai || [],
                 tukarTransferKeCash: dto.tukarTransferKeCash || 0,
+                additionalIncomes: dto.additionalIncomes || [],
             },
         });
+
+        // Buat Cashflow INCOME untuk pemasukan tambahan eksternal
+        if (dto.additionalIncomes && dto.additionalIncomes.length > 0) {
+            for (const income of dto.additionalIncomes) {
+                if (!income.bankName || !income.amount || income.amount <= 0) continue;
+                const bank = activeBanks.find((b: any) => b.bankName === income.bankName);
+                if (!bank) continue;
+                await this.prisma.cashflow.create({
+                    data: {
+                        type: 'INCOME',
+                        category: 'Pemasukan Tambahan',
+                        amount: income.amount,
+                        note: income.description || 'Pemasukan Eksternal',
+                        paymentMethod: 'BANK_TRANSFER',
+                        bankAccountId: bank.id,
+                        date: new Date(dto.closedAt),
+                    } as any,
+                });
+            }
+        }
+
+        // Buat Cashflow EXPENSE dari pengeluaran shift (structuredExpenses)
+        if (dto.structuredExpenses) {
+            for (const [method, items] of Object.entries(dto.structuredExpenses)) {
+                if (!items || items.length === 0) continue;
+                const isCash = method === 'CASH';
+                const bank = isCash ? null : activeBanks.find((b: any) => b.bankName === method);
+                for (const item of items) {
+                    if (!item.name || !item.amount || Number(item.amount) <= 0) continue;
+                    await this.prisma.cashflow.create({
+                        data: {
+                            type: 'EXPENSE',
+                            category: item.name,
+                            amount: Number(item.amount),
+                            note: `Pengeluaran shift ${dto.shiftName || ''} — ${item.name}`,
+                            paymentMethod: isCash ? 'CASH' : 'BANK_TRANSFER',
+                            bankAccountId: bank?.id || null,
+                            date: new Date(dto.closedAt),
+                        } as any,
+                    });
+                }
+            }
+        }
+
+        // Buat Cashflow EXPENSE untuk kasbon dari Kas Toko
+        if (dto.kasbon && dto.kasbon.length > 0) {
+            for (const k of dto.kasbon) {
+                if (!k.name || !k.amount || Number(k.amount) <= 0) continue;
+                if (k.source && k.source !== 'Kas Toko') continue;
+                await this.prisma.cashflow.create({
+                    data: {
+                        type: 'EXPENSE',
+                        category: 'Kasbon Karyawan',
+                        amount: Number(k.amount),
+                        note: `Kasbon: ${k.name} — shift ${dto.shiftName || ''}`,
+                        paymentMethod: 'CASH',
+                        bankAccountId: null,
+                        date: new Date(dto.closedAt),
+                    } as any,
+                });
+            }
+        }
 
         // Update saldo bank dengan SALDO REAL yang diinput kasir
         const balancesToUpdate = dto.realBankBalances && Object.keys(dto.realBankBalances).length > 0
@@ -315,6 +378,7 @@ export class ReportsService {
             dto.tarikTunai || [],
             dto.reportDate,
             dto.tukarTransferKeCash || 0,
+            dto.additionalIncomes || [],
         );
 
         this.whatsappService.sendReport(reportMsg, proofImages).catch((err) => {
@@ -355,6 +419,7 @@ export class ReportsService {
         tarikTunai: { bankName: string; amount: number }[] = [],
         reportDate?: string,
         tukarTransferKeCash: number = 0,
+        additionalIncomes: AdditionalIncomeItem[] = [],
     ): string {
         const formatRp = (val: number) => {
             return 'Rp ' + new Intl.NumberFormat('id-ID', {
@@ -381,8 +446,19 @@ export class ReportsService {
             totalIncome += amount;
         }
 
-        msg += `QRIS : ${formatRp(exp.grossQris)}\n\n`;
-        msg += `Total : ${formatRp(totalIncome)}\n\n`;
+        msg += `QRIS : ${formatRp(exp.grossQris)}\n`;
+
+        // Pemasukan Tambahan Eksternal
+        if (additionalIncomes && additionalIncomes.length > 0) {
+            msg += `\nPemasukan Tambahan :\n`;
+            additionalIncomes.forEach((inc, idx) => {
+                const label = inc.description ? `${inc.bankName.toUpperCase()} (${inc.description})` : inc.bankName.toUpperCase();
+                msg += `${idx + 1}. ${label} : ${formatRp(inc.amount)}\n`;
+                totalIncome += inc.amount;
+            });
+        }
+
+        msg += `\nTotal : ${formatRp(totalIncome)}\n\n`;
 
         msg += `===============================\n`;
 
@@ -485,8 +561,18 @@ export class ReportsService {
         msg += `Saldo Kas Bersih : ${formatRp(saldoKasBersih)}\n`;
         msg += `===============================\n\n`;
 
+        // Adjust target saldo rekening dengan pemasukan tambahan
+        // (karena cashflow baru dibuat setelah expectedData dihitung)
+        const adjustedSystemBankBalances: Record<string, number> = { ...exp.systemBankBalances };
+        for (const inc of additionalIncomes) {
+            if (inc.bankName && inc.amount > 0) {
+                adjustedSystemBankBalances[inc.bankName] =
+                    (adjustedSystemBankBalances[inc.bankName] || 0) + inc.amount;
+            }
+        }
+
         // Saldo Laporan mBanking (yang kasir lihat di layar)
-        for (const bank of Object.keys(exp.systemBankBalances)) {
+        for (const bank of Object.keys(adjustedSystemBankBalances)) {
             const laporan = actualBankBalances[bank] || 0;
             msg += `Saldo ${bank.toUpperCase()} pada saat laporan : ${formatRp(laporan)}\n`;
         }
@@ -494,7 +580,7 @@ export class ReportsService {
 
         // Saldo Real di Bank (yang benar-benar tercatat)
         const hasRealBalances = Object.keys(realBankBalances).length > 0;
-        for (const bank of Object.keys(exp.systemBankBalances)) {
+        for (const bank of Object.keys(adjustedSystemBankBalances)) {
             const real = hasRealBalances
                 ? (realBankBalances[bank] || 0)
                 : (actualBankBalances[bank] || 0);

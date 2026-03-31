@@ -31,7 +31,9 @@
       "Bash(claude mcp:*)",
       "Bash(find /d/FAISAL/appdev/comprehensive-pos-web-application/frontend/.next -type f -name *service* -o -name *sw*)",
       "Bash(find D:FAISALappdevcomprehensive-pos-web-application/backend/src/settings -type f -name *.ts -o -name *.js)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Read(//backend/**)",
+      "Bash(ls -la /backend)"
     ]
   }
 }

@@ -26,7 +26,10 @@ export class CashflowService {
             this.prisma.cashflow.findMany({
                 where,
                 orderBy: { date: 'desc' },
-                include: { user: { select: { email: true, name: true } } },
+                include: {
+                    user: { select: { email: true, name: true } },
+                    bankAccount: { select: { bankName: true, accountNumber: true } },
+                },
             }),
             this.prisma.cashflow.findMany({ where }),
         ]);
@@ -103,10 +106,17 @@ export class CashflowService {
         };
     }
 
-    async update(id: number, data: { category?: string; amount?: number; note?: string; platformSource?: string | null }) {
+    async update(id: number, data: {
+        category?: string;
+        amount?: number;
+        note?: string;
+        platformSource?: string | null;
+        paymentMethod?: string | null;
+        bankAccountId?: number | null;
+    }) {
         const entry = await this.prisma.cashflow.findUnique({ where: { id } });
         if (!entry) throw new NotFoundException('Cashflow entry not found');
-        return this.prisma.cashflow.update({ where: { id }, data });
+        return this.prisma.cashflow.update({ where: { id }, data: data as any });
     }
 
     async getPlatformBreakdown(startDate?: string, endDate?: string) {

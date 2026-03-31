@@ -34,7 +34,14 @@ export class CashflowController {
     }
 
     @Patch(':id')
-    update(@Param('id') id: string, @Body() data: { category?: string; amount?: number; note?: string; platformSource?: string | null }) {
+    update(@Param('id') id: string, @Body() data: {
+        category?: string;
+        amount?: number;
+        note?: string;
+        platformSource?: string | null;
+        paymentMethod?: string | null;
+        bankAccountId?: number | null;
+    }) {
         return this.cashflowService.update(+id, data);
     }
 
