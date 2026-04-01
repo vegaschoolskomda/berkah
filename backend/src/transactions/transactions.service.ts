@@ -897,6 +897,8 @@ export class TransactionsService {
                     }
                 }
             }
+            // Hapus ProductionJob dulu (FK constraint: productionJob.transactionItemId → transactionItem.id)
+            await tx.productionJob.deleteMany({ where: { transactionItemId: txItem.id } });
             await tx.transactionItem.delete({ where: { id: txItem.id } });
         }
 
@@ -1407,6 +1409,12 @@ export class TransactionsService {
             await tx.cashflow.deleteMany({
                 where: { note: { contains: transaction.invoiceNumber }, type: CashflowType.INCOME }
             });
+
+            // Hapus ProductionJob untuk semua item (FK: productionJob → transactionItem, tidak ada onDelete Cascade)
+            const itemIds = transaction.items.map((i: any) => i.id);
+            if (itemIds.length > 0) {
+                await tx.productionJob.deleteMany({ where: { transactionItemId: { in: itemIds } } });
+            }
 
             // Hapus transaksi (cascade hapus items)
             await tx.transaction.delete({ where: { id } });
