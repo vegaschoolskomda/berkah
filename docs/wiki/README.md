@@ -21,7 +21,7 @@ Yang membedakan PosPro dari kasir biasa adalah **ekosistemnya yang lengkap**: bu
 | 0 | [🔄 Alur Bisnis](alur-bisnis.md) | Setup awal, alur harian kasir, alur produksi, review keuangan — **mulai dari sini** |
 | 1 | [Login & Dashboard](#-1-login-ke-aplikasi) | Cara masuk dan membaca ringkasan bisnis harian |
 | 2 | [Kasir / POS](#-3-kasir--point-of-sale-pos) | Cara melayani pelanggan dan mencatat transaksi |
-| 3 | [Manajemen Produk & Stok](#-4-manajemen-produk--stok) | Cara kelola produk, varian, foto, stok, harga bertingkat |
+| 3 | [Manajemen Produk & Stok](#-4-manajemen-produk--stok) | Cara kelola produk, varian, foto, stok, pembelian bahan baku, riwayat stok |
 | 4 | [DP / Piutang](#-5-daftar-dp--piutang) | Melacak pelanggan yang belum lunas |
 | 5 | [Laporan Penjualan](#-6-laporan-penjualan) | Riwayat semua transaksi dengan filter tanggal |
 | 6 | [Laporan Tutup Shift](#-7-laporan-tutup-shift-) | Rekonsiliasi kas dan rekening bank akhir shift |
@@ -133,8 +133,60 @@ Halaman untuk mengelola semua produk, varian, bahan baku, dan stok yang dijual d
 **Mengelola Stok**
 - Stok terpotong **otomatis** setiap kali ada transaksi di kasir (hanya produk yang **Lacak Stok** aktif)
 - Produk dengan **Tanpa Lacak Stok** ditampilkan dengan simbol **∞** — tidak perlu diisi stoknya, tetap bisa diorder
-- Untuk penambahan stok (restock), buka produk → klik **Tambah Stok** → masukkan jumlah
-- Semua pergerakan stok tercatat di **Riwayat Stok** (masuk, keluar, penyesuaian)
+- Untuk penambahan stok manual, klik ikon **+** (Tambah Stok) di kolom Aksi → masukkan jumlah
+- Semua pergerakan stok tercatat di **Riwayat Stok** — klik ikon jam/history di kolom Aksi untuk melihatnya
+
+**Pembelian Bahan Baku**
+
+Fitur khusus untuk mencatat pembelian stok masuk dari supplier secara terstruktur:
+
+1. Buka halaman **Inventori** → klik tombol **Pembelian** (hijau, pojok kanan atas toolbar)
+2. Pilih **Supplier** (opsional) — jika dipilih, harga beli per item akan terisi otomatis dari data harga supplier
+3. Isi **No. Invoice** (opsional) — nomor faktur dari supplier untuk keperluan pembukuan
+4. Isi **Catatan** (opsional) — misalnya keterangan jenis pembelian
+5. Cari dan tambahkan produk/bahan baku ke keranjang:
+   - Ketik nama produk atau SKU di kolom pencarian
+   - Klik item yang muncul untuk menambahkannya ke keranjang
+6. Di keranjang, atur **Jumlah** dan **Harga Beli/Unit** per item
+7. Klik **Simpan Pembelian** — stok semua item di keranjang akan bertambah sekaligus
+
+> Setiap pembelian tercatat di riwayat stok dengan keterangan `purchase-{id}` sehingga mudah dilacak.
+
+**Riwayat Stok (Kartu Stok)**
+
+Setiap pergerakan stok varian dicatat secara lengkap dan bisa dilihat kapan saja:
+
+1. Di tabel inventori, klik ikon **riwayat** (jam/history) di kolom Aksi pada baris varian yang diinginkan
+2. Modal **Riwayat Stok** akan muncul — menampilkan semua pergerakan stok dari yang terbaru
+
+| Kolom | Keterangan |
+|---|---|
+| Tipe | **MASUK** (hijau) / **KELUAR** (merah) / **SESUAIKAN** (biru) |
+| Keterangan | Alasan pergerakan (misal: Transaksi, Stok Awal, Pembelian, Opname) |
+| Referensi | Kode sumber (contoh: `purchase-12`, `opname-abc123`, `initial-stock`) |
+| Jumlah | Banyaknya stok yang bergerak |
+| Sisa | Saldo stok setelah pergerakan tersebut |
+| Waktu | Tanggal dan jam tercatatnya pergerakan |
+
+**Kolom Stok Awal**
+
+Tabel inventori menampilkan kolom **Stok Awal** yang menunjukkan berapa stok yang tercatat pertama kali untuk setiap varian. Nilai ini diambil dari entri stok tertua dengan keterangan "Stok Awal" atau kode `initial-stock`.
+
+Cara mengisi stok awal:
+- **Saat tambah varian baru**: isi kolom stok, sistem otomatis mencatat sebagai stok awal
+- **Untuk produk yang sudah ada**: gunakan **Sesuaikan Stok** → masukkan jumlah → beri catatan mengandung kata **"Stok Awal"**
+
+**Kolom Aksi (Menu Kebab ⋮)**
+
+Kolom aksi di tabel inventori dirancang ringkas untuk kemudahan penggunaan sehari-hari:
+
+| Tombol | Fungsi |
+|---|---|
+| **+** (ikon plus) | Tambah stok / catat stok masuk |
+| **jam** (ikon history) | Lihat riwayat stok lengkap |
+| **⋮** (kebab menu) | Buka menu aksi lainnya |
+
+Menu kebab berisi: **Catat Susut**, **Edit Produk**, **Kalkulator HPP**, **Salin Link Produk**, dan **Hapus Produk**.
 
 **Varian Produk**
 
@@ -450,4 +502,4 @@ Dokumentasi lengkap untuk fitur-fitur bisnis tingkat lanjut:
 
 ---
 
-*Dokumentasi PosPro — Terakhir diperbarui: 26 Maret 2026 | v2.8 — Alur Bisnis, Supplier Management, Backup & Restore, Stok Opname, Antrian Produksi Rakitan, HPP Multi-Varian, Harga Bertingkat*
+*Dokumentasi PosPro — Terakhir diperbarui: 5 April 2026 | v2.9 — Pembelian Bahan Baku, Kartu Stok / Riwayat Stok, Kolom Stok Awal, Perbaikan UX Kolom Aksi Inventori*
