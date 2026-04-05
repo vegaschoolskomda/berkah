@@ -1,4 +1,4 @@
-import { Controller, Get, Query, UnauthorizedException, Sse } from '@nestjs/common';
+import { Controller, Header, Query, UnauthorizedException, Sse } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Observable } from 'rxjs';
 import { NotificationsService } from './notifications.service';
@@ -11,6 +11,8 @@ export class NotificationsController {
     ) { }
 
     @Sse('stream')
+    @Header('X-Accel-Buffering', 'no')
+    @Header('Cache-Control', 'no-cache')
     stream(@Query('token') token: string): Observable<MessageEvent> {
         if (!token) throw new UnauthorizedException();
         try {

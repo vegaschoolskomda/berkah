@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Subject, Observable } from 'rxjs';
+import { Subject, Observable, interval, merge } from 'rxjs';
 import { map } from 'rxjs/operators';
 
 export interface NotifEvent {
@@ -17,9 +17,13 @@ export class NotificationsService {
     }
 
     getObservable(): Observable<MessageEvent> {
-        return this.subject.pipe(
+        const events$ = this.subject.pipe(
             map(event => ({ data: event } as MessageEvent))
         );
+        const heartbeat$ = interval(25000).pipe(
+            map(() => ({ data: { type: 'ping' } } as unknown as MessageEvent))
+        );
+        return merge(events$, heartbeat$);
     }
 
     async sendToDiscord(webhookUrl: string, content: string) {
