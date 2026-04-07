@@ -16,7 +16,7 @@ export default defineConfig({
     nav: [
       { text: 'Mulai di Sini', link: '/alur-bisnis' },
       { text: 'Wiki Lengkap', link: '/' },
-      { text: 'v2.8', items: [{ text: 'Lihat Daftar Isi', link: '/#daftar-isi-wiki' }] },
+      { text: 'v3.0', items: [{ text: 'Lihat Daftar Isi', link: '/#daftar-isi-wiki' }] },
     ],
 
     sidebar: [
@@ -41,6 +41,7 @@ export default defineConfig({
         text: '💰 Laporan & Keuangan',
         items: [
           { text: '💸 Cashflow Bisnis', link: '/cashflow' },
+          { text: '📊 Laporan Stok', link: '/laporan-stok' },
           { text: '🧮 Kalkulator HPP', link: '/hpp-calculator' },
           { text: '🗺️ Peta Cuan Lokasi', link: '/peta-cuan' },
         ]

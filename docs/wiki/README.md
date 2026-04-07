@@ -29,15 +29,16 @@ Yang membedakan PosPro dari kasir biasa adalah **ekosistemnya yang lengkap**: bu
 | 8 | [Data Pelanggan](#-8-data-pelanggan) | Database & riwayat belanja pelanggan |
 | 9 | [WhatsApp Bot](#-9-pengaturan-whatsapp-bot) | Setup bot laporan otomatis ke grup WA owner |
 | 10 | [💰 Cashflow Bisnis](cashflow.md) | Arus kas pemasukan & pengeluaran, chart, export |
-| 11 | [📄 Invoice & Penawaran Harga](invoice-sph.md) | Buat invoice & SPH profesional untuk klien B2B |
-| 12 | [🗺️ Peta Cuan Lokasi](peta-cuan.md) | Peta cabang, kompetitor, dan pencarian bisnis |
-| 13 | [🎨 Tampilan Login](#-10-pengaturan-tampilan-halaman-login) | Upload foto latar, atur tagline, animated logo |
-| 14 | [🖨️ Antrian Produksi](produksi.md) | Antrian cetak, job satuan & batch, produk rakitan multi-tahap, search, detail invoice |
-| 15 | [📋 Stok Opname](stock-opname.md) | Hitung fisik stok via link operator untuk karyawan |
-| 16 | [🏭 Data Supplier](suppliers.md) | Kelola data supplier dan harga beli per varian produk |
-| 17 | [💾 Backup & Restore](backup.md) | Backup database ke ZIP, preview, dan restore dari file |
-| 18 | [🧮 Kalkulator HPP](hpp-calculator.md) | Worksheet biaya produksi, multi-varian, biaya tambah, simpan sebagai produk |
-| 19 | [🚀 Panduan Deployment](deployment.md) | Setup di home server / VPS dengan Cloudflare Tunnel |
+| 11 | [📊 Laporan Stok](laporan-stok.md) | Pergerakan stok per periode, filter IN/OUT/ADJUST, export CSV |
+| 12 | [📄 Invoice & Penawaran Harga](invoice-sph.md) | Buat invoice & SPH profesional untuk klien B2B |
+| 13 | [🗺️ Peta Cuan Lokasi](peta-cuan.md) | Peta cabang, kompetitor, dan pencarian bisnis |
+| 14 | [🎨 Tampilan Login](#-10-pengaturan-tampilan-halaman-login) | Upload foto latar, atur tagline, animated logo |
+| 15 | [🖨️ Antrian Produksi](produksi.md) | Antrian cetak, job satuan & batch, produk rakitan multi-tahap, search, detail invoice |
+| 16 | [📋 Stok Opname](stock-opname.md) | Hitung fisik stok via link operator untuk karyawan |
+| 17 | [🏭 Data Supplier](suppliers.md) | Kelola data supplier dan harga beli per varian produk |
+| 18 | [💾 Backup & Restore](backup.md) | Backup database ke ZIP, preview, dan restore dari file |
+| 19 | [🧮 Kalkulator HPP](hpp-calculator.md) | Worksheet biaya produksi, multi-varian, biaya tambah, simpan sebagai produk |
+| 20 | [🚀 Panduan Deployment](deployment.md) | Setup di home server / VPS dengan Cloudflare Tunnel |
 
 ---
 
@@ -51,6 +52,12 @@ Buka browser dan akses alamat aplikasi (contoh: `http://localhost:3000`).
 Klik **Sign In**. Jika berhasil, Anda akan masuk ke halaman Dashboard.
 
 > **Lupa password?** Hubungi administrator toko untuk mereset akun Anda.
+
+### Auto-Logout Otomatis
+
+Jika sesi login sudah kadaluarsa (token JWT habis masa berlakunya), sistem akan secara otomatis mengarahkan kembali ke halaman login. Ini terjadi saat ada permintaan API yang mengembalikan error **401 Unauthorized** — misalnya ketika halaman dibiarkan terbuka dalam waktu yang sangat lama.
+
+> Tidak perlu khawatir kehilangan data transaksi yang sudah diinput — keranjang belanja di kasir disimpan di browser (Zustand state). Setelah login ulang, kembali ke halaman `/pos`.
 
 ---
 
@@ -89,18 +96,31 @@ Halaman kasir adalah inti dari aplikasi — tempat mencatat setiap transaksi pen
 - Produk dengan **∞** (Tanpa Lacak Stok) bisa ditambahkan ke keranjang tanpa batas
 - Klik ikon tempat sampah untuk menghapus item dari keranjang
 
-**Langkah 3 — Pilih Metode Pembayaran**
+**Langkah 3 — Atur Tagihan (Opsional)**
+
+Di modal checkout, tersedia dua kolom tambahan sebelum grand total:
+
+| Kolom | Keterangan |
+|---|---|
+| **Diskon** | Nominal diskon dalam rupiah — dikurangi dari subtotal sebelum pajak dihitung |
+| **Ongkos Kirim** | Biaya pengiriman — ditambahkan ke grand total |
+
+Formula grand total: **Subtotal − Diskon + Pajak + Ongkos Kirim**
+
+> Diskon yang diinput otomatis dicatat sebagai pengeluaran **"Diskon"** di Cashflow — sehingga laporan keuangan tetap akurat.
+
+**Langkah 4 — Pilih Metode Pembayaran**
 - **Tunai (Cash)**: masukkan nominal yang diterima, sistem otomatis hitung kembalian
 - **Transfer Bank**: pilih rekening tujuan transfer yang diinginkan pelanggan
 - **QRIS**: tampilkan QR code ke pelanggan untuk dipindai
 
-**Langkah 4 — Selesaikan Transaksi**
+**Langkah 5 — Selesaikan Transaksi**
 - Klik **Bayar Lunas** untuk pembayaran penuh
 - Klik **Bayar DP** jika pelanggan hanya membayar sebagian (uang muka) — transaksi akan masuk ke daftar Piutang
 
-**Langkah 5 — Struk**
+**Langkah 6 — Struk**
 - Setelah transaksi selesai, struk muncul otomatis
-- Klik **Cetak** untuk mencetak ke printer thermal
+- Klik **Cetak** untuk mencetak ke printer thermal — baris **Diskon** dan **Ongkos Kirim** muncul di struk jika nilainya > 0
 - Klik **Kirim WA** untuk mengirim ringkasan tagihan ke WhatsApp pelanggan
 
 > **Tips**: Produk mode **Area Based** akan otomatis memunculkan modal input Lebar × Tinggi saat ditambahkan ke keranjang. Pilih satuan yang sesuai produk (m, cm, atau menit) — harga dan stok dihitung secara independen berdasarkan satuan tersebut.
@@ -217,8 +237,19 @@ Saat membuat produk, pilih tipe yang sesuai:
 | Tipe | Keterangan |
 |---|---|
 | **Produk Jual** (SELLABLE) | Produk/jasa yang dijual ke pelanggan — muncul di kasir |
-| **Bahan Baku** (RAW_MATERIAL) | Material produksi — tidak muncul di kasir, dipakai di BOM/Ingredient |
+| **Bahan Baku** (RAW_MATERIAL) | Material produksi — **tidak muncul di kasir**, hanya muncul di inventori sebagai bahan untuk BOM/Ingredient |
 | **Jasa** (SERVICE) | Layanan tanpa stok fisik |
+
+> **Bahan Baku tidak dijual ke pelanggan** — sehingga tidak tampil di halaman kasir maupun di tab kategori kasir. Ini mencegah kasir salah memilih bahan baku sebagai produk jual.
+
+**Tab Kategori di Inventori**
+
+Halaman Inventori memiliki dua baris tab untuk navigasi cepat:
+
+1. **Tab Tipe Produk** (baris atas): `Semua` / `Siap Jual` / `Bahan Baku` / `Jasa` — masing-masing menampilkan jumlah produk
+2. **Tab Kategori** (baris bawah): muncul dinamis berdasarkan tipe yang dipilih — hanya kategori yang relevan dengan tipe tersebut yang ditampilkan
+
+Klik tab tipe terlebih dahulu, lalu pilih kategori spesifik untuk menyempurnakan tampilan. Reset ke tab **Semua** untuk melihat seluruh inventori.
 
 **Impor Produk Massal (Bulk Import)**
 
@@ -491,6 +522,7 @@ Dokumentasi lengkap untuk fitur-fitur bisnis tingkat lanjut:
 |---|---|
 | [🔄 Alur Bisnis](alur-bisnis.md) | **Mulai dari sini** — setup awal, alur harian, alur produksi, review keuangan |
 | [💰 Cashflow Bisnis](cashflow.md) | Arus kas, chart tren, kategorisasi, export Excel |
+| [📊 Laporan Stok](laporan-stok.md) | Pergerakan stok per periode, filter IN/OUT/ADJUST, export CSV |
 | [📄 Invoice & Penawaran Harga](invoice-sph.md) | Invoice B2B, SPH, catalog picker, area-based pricing |
 | [🗺️ Peta Cuan Lokasi](peta-cuan.md) | Peta cabang, kompetitor, pencarian bisnis by keyword |
 | [🖨️ Antrian Produksi](produksi.md) | Antrian cetak, batch, produk rakitan multi-tahap, search pelanggan, detail invoice |
@@ -502,4 +534,4 @@ Dokumentasi lengkap untuk fitur-fitur bisnis tingkat lanjut:
 
 ---
 
-*Dokumentasi PosPro — Terakhir diperbarui: 5 April 2026 | v2.9 — Pembelian Bahan Baku, Kartu Stok / Riwayat Stok, Kolom Stok Awal, Perbaikan UX Kolom Aksi Inventori*
+*Dokumentasi PosPro — Terakhir diperbarui: 8 April 2026 | v3.0 — Auto-logout, Tab Kategori Inventori, Bahan Baku disembunyikan dari Kasir, Ongkos Kirim, Diskon di Cashflow, Modal Checkout diperbarui, Laporan Stok baru*
