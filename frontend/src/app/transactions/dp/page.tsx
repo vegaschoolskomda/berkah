@@ -19,7 +19,12 @@ export default function DPTransactionsPage() {
     const [payoffBankId, setPayoffBankId] = useState<string>('');
     const [nominalBayar, setNominalBayar] = useState<string>('');
 
+    const [activeTab, setActiveTab] = useState<'Semua' | 'DP' | 'Kredit'>('Semua');
+
     const dpTransactions = transactions?.filter((t: any) => t.status === 'PARTIAL') || [];
+    const kreditList = dpTransactions.filter((t: any) => Number(t.downPayment) === 0);
+    const dpList = dpTransactions.filter((t: any) => Number(t.downPayment) > 0);
+    const visibleTransactions = activeTab === 'DP' ? dpList : activeTab === 'Kredit' ? kreditList : dpTransactions;
 
     const payOffMutation = useMutation({
         mutationFn: (id: number) => payOffTransaction(id, { paymentMethod, bankAccountId: payoffBankId ? Number(payoffBankId) : undefined }),
@@ -49,8 +54,25 @@ export default function DPTransactionsPage() {
             <div className="sm:flex sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-foreground">Daftar DP / Piutang</h1>
-                    <p className="mt-1 text-sm text-muted-foreground">Kumpulan transaksi dengan pembayaran sebagian (Down Payment).</p>
+                    <p className="mt-1 text-sm text-muted-foreground">Kumpulan transaksi dengan pembayaran sebagian atau kredit.</p>
                 </div>
+            </div>
+
+            {/* Filter Tabs */}
+            <div className="flex gap-2">
+                {(['Semua', 'DP', 'Kredit'] as const).map(tab => (
+                    <button key={tab} onClick={() => setActiveTab(tab)}
+                        className={`px-4 py-1.5 rounded-full text-sm font-semibold border transition-all ${
+                            activeTab === tab
+                                ? tab === 'Kredit' ? 'bg-violet-600 text-white border-violet-600' : 'bg-primary text-primary-foreground border-primary'
+                                : 'bg-background border-border text-muted-foreground hover:border-primary/40'
+                        }`}>
+                        {tab}
+                        <span className="ml-1.5 text-[11px] font-bold opacity-70">
+                            {tab === 'Semua' ? dpTransactions.length : tab === 'DP' ? dpList.length : kreditList.length}
+                        </span>
+                    </button>
+                ))}
             </div>
 
             {/* Stats */}
@@ -58,12 +80,14 @@ export default function DPTransactionsPage() {
                 <div className="glass p-6 rounded-xl border border-orange-500/20 bg-orange-500/5 flex flex-col justify-center">
                     <p className="text-sm font-medium text-orange-700 mb-1">Total Tagihan Belum Lunas</p>
                     <h2 className="text-3xl font-bold text-orange-600">
-                        Rp {dpTransactions.reduce((acc: number, t: any) => acc + (Number(t.grandTotal) - Number(t.downPayment)), 0).toLocaleString('id-ID')}
+                        Rp {visibleTransactions.reduce((acc: number, t: any) => acc + (Number(t.grandTotal) - Number(t.downPayment)), 0).toLocaleString('id-ID')}
                     </h2>
                 </div>
                 <div className="glass p-6 rounded-xl border border-border flex flex-col justify-center">
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Jumlah Transaksi DP Aktif</p>
-                    <h2 className="text-3xl font-bold text-foreground">{dpTransactions.length} <span className="text-lg text-muted-foreground font-normal ml-1">Nota</span></h2>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">
+                        {activeTab === 'Kredit' ? 'Nota Kredit Aktif' : activeTab === 'DP' ? 'Nota DP Aktif' : 'Total Nota Aktif'}
+                    </p>
+                    <h2 className="text-3xl font-bold text-foreground">{visibleTransactions.length} <span className="text-lg text-muted-foreground font-normal ml-1">Nota</span></h2>
                 </div>
             </div>
 
@@ -81,10 +105,12 @@ export default function DPTransactionsPage() {
                             </tr>
                         </thead>
                         <tbody className="bg-card divide-y divide-border">
-                            {dpTransactions.map((trx: any) => {
+                            {visibleTransactions.map((trx: any) => {
                                 const grandTotal = Number(trx.grandTotal);
                                 const dp = Number(trx.downPayment);
                                 const balance = grandTotal - dp;
+                                const isKredit = dp === 0;
+                                const isOverdue = trx.dueDate && dayjs(trx.dueDate).isBefore(dayjs(), 'day');
                                 return (
                                     <tr key={trx.id} className="hover:bg-muted/30 transition-colors">
                                         <td className="px-6 py-4 whitespace-nowrap">
@@ -92,7 +118,17 @@ export default function DPTransactionsPage() {
                                             <div className="flex items-center gap-2 mt-1">
                                                 <span className="text-sm text-primary font-mono">{trx.invoiceNumber}</span>
                                                 <span className="text-xs text-muted-foreground">• {dayjs(trx.createdAt).format('DD MMM YYYY')}</span>
+                                                {isKredit
+                                                    ? <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 border border-violet-500/20">KREDIT</span>
+                                                    : <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20">DP</span>
+                                                }
                                             </div>
+                                            {trx.dueDate && (
+                                                <p className={`text-[11px] mt-0.5 font-medium ${isOverdue ? 'text-red-500' : 'text-muted-foreground'}`}>
+                                                    {isOverdue ? '⚠ Lewat jatuh tempo: ' : 'Jatuh tempo: '}
+                                                    {dayjs(trx.dueDate).format('DD MMM YYYY')}
+                                                </p>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-foreground text-right border-l border-border/50">
                                             Rp {grandTotal.toLocaleString('id-ID')}
@@ -130,12 +166,14 @@ export default function DPTransactionsPage() {
                                     </tr>
                                 );
                             })}
-                            {dpTransactions.length === 0 && (
+                            {visibleTransactions.length === 0 && (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-12 text-center">
                                         <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3 opacity-20" />
                                         <p className="text-base font-medium text-foreground">Tidak ada piutang aktif</p>
-                                        <p className="text-sm text-muted-foreground mt-1">Semua transaksi pelanggan sudah lunas.</p>
+                                        <p className="text-sm text-muted-foreground mt-1">
+                                            {activeTab === 'Kredit' ? 'Belum ada nota kredit.' : activeTab === 'DP' ? 'Belum ada DP aktif.' : 'Semua transaksi sudah lunas.'}
+                                        </p>
                                     </td>
                                 </tr>
                             )}

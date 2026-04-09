@@ -14,6 +14,14 @@ dayjs.locale("id");
 
 const UNITS = ["pcs", "lembar", "set", "m²", "m", "kg", "liter", "box", "roll", "unit", "jam", "hari"];
 
+function getEffectivePrice(variant: any): number {
+    const base = Number(variant.price || 0);
+    const tiers: any[] = variant.priceTiers || [];
+    if (tiers.length === 0) return base;
+    const sorted = [...tiers].sort((a: any, b: any) => Number(a.minQty) - Number(b.minQty));
+    return Number(sorted[0].price);
+}
+
 type CatalogItem = {
     label: string;
     description: string;
@@ -74,7 +82,7 @@ export function FormModal({
                         label: `${product.name}${variantSuffix}`,
                         description: `${product.name}${variantSuffix}`,
                         unit: pricingMode === "AREA_BASED" ? "m²" : unitName,
-                        price: Number(v.price),
+                        price: getEffectivePrice(v),
                         type,
                         pricingMode,
                     });

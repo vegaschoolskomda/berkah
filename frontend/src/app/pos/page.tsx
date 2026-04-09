@@ -2,7 +2,8 @@
 
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { getProducts, getSettings, getBankAccounts, getCustomers, createCustomer, getUsers, createTransaction } from '@/lib/api';
-import { Search, ShoppingCart, Plus, Minus, Trash2, CheckCircle2, Ruler, X, RefreshCw, StickyNote, Printer, MessageCircle, Pencil, Check, CalendarClock } from "lucide-react";
+import { Search, ShoppingCart, Plus, Minus, Trash2, CheckCircle2, Ruler, X, RefreshCw, StickyNote, Printer, MessageCircle, Pencil, Check, CalendarClock, CalendarRange } from "lucide-react";
+import dayjs from 'dayjs';
 import { cn } from "@/lib/utils";
 import { useCartStore, CartItem } from '@/store/cart-store';
 import { useState, useMemo, useCallback } from 'react';
@@ -61,7 +62,7 @@ export default function POSPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [isCheckoutModalOpen, setCheckoutModalOpen] = useState(false);
     const [showPayConfirm, setShowPayConfirm] = useState(false);  // confirmation step
-    const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'QRIS' | 'BANK_TRANSFER'>('CASH');
+    const [paymentMethod, setPaymentMethod] = useState<'CASH' | 'QRIS' | 'BANK_TRANSFER' | 'KREDIT'>('CASH');
     const [selectedBankId, setSelectedBankId] = useState<string>('');
     const [areaModal, setAreaModal] = useState<AreaModalState>(emptyAreaModal());
     const [customerName, setCustomerName] = useState('');
@@ -292,7 +293,7 @@ export default function POSPage() {
                 note: item.note,
                 customPrice: item.customPrice != null ? item.customPrice : undefined,
             })),
-            paymentMethod,
+            paymentMethod: paymentMethod === 'KREDIT' ? 'CASH' : paymentMethod,
             discount: discountNum > 0 ? discountNum : 0,
             shippingCost: shippingCostNum > 0 ? shippingCostNum : undefined,
             customerName: customerName.trim() || undefined,
@@ -326,6 +327,7 @@ export default function POSPage() {
                     setCustomerName(''); setCustomerPhone(''); setCustomerAddress('');
                     setProductionPriority('NORMAL'); setProductionDeadline(''); setProductionNotes('');
                     setPaymentMethod('CASH'); setSelectedBankId('');
+                    setDueDate(''); setDownPayment('');
                     setTransactionDate(''); setCashflowToday(false);
                     setReceipt(snap);
 
@@ -913,9 +915,12 @@ export default function POSPage() {
                                         <div className="w-12 h-12 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto mb-3">
                                             <span className="text-2xl">⚠️</span>
                                         </div>
-                                        <h3 className="text-lg font-bold">{downPayment !== '' && Number(downPayment) < grandTotal ? 'Konfirmasi DP' : 'Konfirmasi Pembayaran'}</h3>
+                                        <h3 className="text-lg font-bold">{paymentMethod === 'KREDIT' ? 'Konfirmasi Nota Kredit' : downPayment !== '' && Number(downPayment) < grandTotal ? 'Konfirmasi DP' : 'Konfirmasi Pembayaran'}</h3>
                                         <p className="text-sm text-muted-foreground mt-1">
-                                            Pastikan pembayaran <strong>Rp {(downPayment !== '' && Number(downPayment) < grandTotal ? Number(downPayment) : grandTotal).toLocaleString('id-ID')}</strong> via <strong>{paymentMethod === 'BANK_TRANSFER' ? 'Transfer Bank' : paymentMethod}</strong> sudah diterima sebelum melanjutkan.
+                                            {paymentMethod === 'KREDIT'
+                                                ? <>Transaksi disimpan sebagai <strong>piutang</strong>. Jatuh tempo: <strong>{dueDate ? dayjs(dueDate).format('DD/MM/YYYY') : '-'}</strong>. Tidak ada pembayaran diterima sekarang.</>
+                                                : <>Pastikan pembayaran <strong>Rp {(downPayment !== '' && Number(downPayment) < grandTotal ? Number(downPayment) : grandTotal).toLocaleString('id-ID')}</strong> via <strong>{paymentMethod === 'BANK_TRANSFER' ? 'Transfer Bank' : paymentMethod}</strong> sudah diterima sebelum melanjutkan.</>
+                                            }
                                         </p>
                                     </div>
                                     <div className="grid grid-cols-2 gap-3">
@@ -927,7 +932,7 @@ export default function POSPage() {
                                             disabled={transactionMutation.isPending}
                                             className="py-3 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
                                             <CheckCircle2 className="w-4 h-4" />
-                                            {transactionMutation.isPending ? 'Memproses...' : (downPayment !== '' && Number(downPayment) < grandTotal ? 'Ya, Konfirmasi DP ✓' : 'Ya, Sudah Lunas ✓')}
+                                            {transactionMutation.isPending ? 'Memproses...' : paymentMethod === 'KREDIT' ? 'Ya, Simpan Nota Kredit ✓' : downPayment !== '' && Number(downPayment) < grandTotal ? 'Ya, Konfirmasi DP ✓' : 'Ya, Sudah Lunas ✓'}
                                         </button>
                                     </div>
                                 </div>
@@ -1044,7 +1049,7 @@ export default function POSPage() {
                                             className="w-full px-2 py-1.5 bg-background border border-border rounded-lg outline-none text-xs focus:border-primary transition-colors" />
                                     </div>
                                 </div>
-                                {downPayment !== '' && Number(downPayment) < grandTotal && (
+                                {downPayment !== '' && Number(downPayment) < grandTotal && paymentMethod !== 'KREDIT' && (
                                     <div className="mt-2 px-2.5 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[11px] text-amber-600 font-semibold">
                                         DP — sisa tagihan: Rp {(grandTotal - Number(downPayment)).toLocaleString('id-ID')}
                                     </div>
@@ -1083,13 +1088,17 @@ export default function POSPage() {
                             {/* ── Metode Pembayaran ── */}
                             <div className="px-4 pt-3 pb-3 space-y-2">
                                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Pembayaran</p>
-                                <div className="grid grid-cols-3 gap-2">
+                                <div className="grid grid-cols-4 gap-2">
                                     {(['CASH', 'QRIS', 'BANK_TRANSFER'] as const).map(m => (
-                                        <button key={m} onClick={() => setPaymentMethod(m)}
+                                        <button key={m} onClick={() => { setPaymentMethod(m); if (downPayment === '0') setDownPayment(''); }}
                                             className={`py-2 rounded-xl text-xs font-bold transition-all border-2 ${paymentMethod === m ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-muted/50 text-muted-foreground hover:border-primary/30'}`}>
                                             {m === 'BANK_TRANSFER' ? 'TRANSFER' : m}
                                         </button>
                                     ))}
+                                    <button onClick={() => { setPaymentMethod('KREDIT'); setDownPayment('0'); }}
+                                        className={`py-2 rounded-xl text-xs font-bold transition-all border-2 flex items-center justify-center gap-1 ${paymentMethod === 'KREDIT' ? 'border-violet-500 bg-violet-500/10 text-violet-600' : 'border-border bg-muted/50 text-muted-foreground hover:border-violet-400/50'}`}>
+                                        <CalendarRange className="w-3 h-3 shrink-0" /> KREDIT
+                                    </button>
                                 </div>
 
                                 {paymentMethod === 'QRIS' && (
@@ -1098,6 +1107,34 @@ export default function POSPage() {
                                             ? <img src={`${API_BASE}${settings.qrisImageUrl}`} alt="QRIS" className="w-32 h-32 object-contain rounded-lg border bg-white p-1 mx-auto shadow-sm" />
                                             : <div className="h-16 bg-muted flex items-center justify-center rounded-lg border border-dashed text-muted-foreground text-xs">QRIS belum diupload</div>
                                         }
+                                    </div>
+                                )}
+
+                                {paymentMethod === 'KREDIT' && (
+                                    <div className="bg-violet-500/5 border border-violet-500/20 rounded-xl p-3 space-y-2">
+                                        <p className="text-[11px] font-semibold text-violet-600 uppercase tracking-wider">Jatuh Tempo Pembayaran</p>
+                                        <div className="grid grid-cols-3 gap-1.5">
+                                            {[
+                                                { label: 'Akhir Minggu', value: dayjs().endOf('week').format('YYYY-MM-DD') },
+                                                { label: 'Akhir Bulan', value: dayjs().endOf('month').format('YYYY-MM-DD') },
+                                                { label: '2 Bulan', value: dayjs().add(2, 'month').format('YYYY-MM-DD') },
+                                                { label: '6 Bulan', value: dayjs().add(6, 'month').format('YYYY-MM-DD') },
+                                                { label: '1 Tahun', value: dayjs().add(1, 'year').format('YYYY-MM-DD') },
+                                            ].map(opt => (
+                                                <button key={opt.label} type="button" onClick={() => setDueDate(opt.value)}
+                                                    className={`py-1.5 px-2 rounded-lg text-[11px] font-semibold border transition-all ${dueDate === opt.value ? 'border-violet-500 bg-violet-500/15 text-violet-700' : 'border-border bg-background text-muted-foreground hover:border-violet-400/50'}`}>
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                            <input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)}
+                                                min={dayjs().add(1, 'day').format('YYYY-MM-DD')}
+                                                className="py-1.5 px-2 rounded-lg text-[11px] border border-border bg-background outline-none focus:border-violet-400 transition-colors" />
+                                        </div>
+                                        {dueDate && (
+                                            <p className="text-[11px] text-violet-600 font-medium">
+                                                Jatuh tempo: {dayjs(dueDate).format('DD/MM/YYYY')}
+                                            </p>
+                                        )}
                                     </div>
                                 )}
 
@@ -1186,9 +1223,12 @@ export default function POSPage() {
                                     Batal
                                 </button>
                                 <button onClick={() => setShowPayConfirm(true)}
-                                    disabled={transactionMutation.isPending}
-                                    className="col-span-2 py-3 text-primary-foreground font-bold rounded-xl bg-primary hover:bg-primary/90 shadow-md flex items-center justify-center gap-2 disabled:opacity-50 text-sm transition-colors">
-                                    <CheckCircle2 className="w-4 h-4" /> {downPayment !== '' && Number(downPayment) < grandTotal ? 'Konfirmasi Pembayaran DP' : 'Konfirmasi Lunas'}
+                                    disabled={transactionMutation.isPending || (paymentMethod === 'KREDIT' && !dueDate)}
+                                    className={`col-span-2 py-3 font-bold rounded-xl shadow-md flex items-center justify-center gap-2 disabled:opacity-50 text-sm transition-colors ${paymentMethod === 'KREDIT' ? 'bg-violet-600 hover:bg-violet-700 text-white' : 'bg-primary hover:bg-primary/90 text-primary-foreground'}`}>
+                                    <CheckCircle2 className="w-4 h-4" />
+                                    {paymentMethod === 'KREDIT'
+                                        ? (dueDate ? 'Simpan Nota Kredit' : 'Pilih Jatuh Tempo')
+                                        : downPayment !== '' && Number(downPayment) < grandTotal ? 'Konfirmasi Pembayaran DP' : 'Konfirmasi Lunas'}
                                 </button>
                             </div>
                         </div>
