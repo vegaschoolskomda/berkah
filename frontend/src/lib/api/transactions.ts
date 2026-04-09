@@ -1,10 +1,11 @@
 import api from './client';
 
 // Transactions
-export const getTransactions = async (startDate?: string, endDate?: string) => {
+export const getTransactions = async (startDate?: string, endDate?: string, search?: string) => {
     const params = new URLSearchParams();
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
+    if (search) params.append('search', search);
     const query = params.toString();
     return (await api.get(`/transactions${query ? `?${query}` : ''}`)).data;
 };

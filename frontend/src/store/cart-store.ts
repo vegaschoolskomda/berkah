@@ -63,17 +63,17 @@ function applyTierPrice(qty: number, basePrice: number, tiers: PriceTier[]): num
 }
 
 function computeAreaPrice(width: number, height: number, unitPrice: number, unitType: 'm' | 'cm' | 'menit') {
-    // priceMultiplier: raw area in input unit — matches how price is set per product
-    //   m    → price per m²,  multiplier = w × h (m²)
-    //   cm   → price per cm², multiplier = w × h (cm²), no conversion
-    //   menit→ price per unit, multiplier = w
-    let priceMultiplier = 0;
-    if (unitType === 'm') priceMultiplier = width * height;
-    else if (unitType === 'cm') priceMultiplier = width * height; // raw cm², price is per cm²
-    else if (unitType === 'menit') priceMultiplier = width;
+    // price is always stored as per-m² for AREA_BASED products
+    //   m    → input already in m², multiplier = w × h
+    //   cm   → convert cm² → m²: multiplier = (w × h) / 10000
+    //   menit→ duration-based: multiplier = w (minutes)
+    let areaM2 = 0;
+    if (unitType === 'm') areaM2 = width * height;
+    else if (unitType === 'cm') areaM2 = (width * height) / 10000;
+    else if (unitType === 'menit') areaM2 = width;
 
-    const price = priceMultiplier * unitPrice;
-    return { areaM2: priceMultiplier, price };
+    const price = areaM2 * unitPrice;
+    return { areaM2, price };
 }
 
 export const useCartStore = create<CartState>((set, get) => ({

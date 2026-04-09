@@ -3,10 +3,12 @@ import api from './client';
 // Dashboard & Sales
 export const getDashboardMetrics = async () => (await api.get('/transactions/dashboard/metrics')).data;
 export const getSalesChart = async (period: string) => (await api.get(`/transactions/dashboard/chart?period=${period}`)).data;
-export const getSalesSummary = async (startDate?: string, endDate?: string) => {
+export const getSalesSummary = async (startDate?: string, endDate?: string, sortBy: 'qty' | 'revenue' = 'qty', limit: number = 20) => {
     const params = new URLSearchParams();
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
+    params.append('sortBy', sortBy);
+    params.append('limit', String(limit));
     return (await api.get(`/transactions/reports/summary?${params.toString()}`)).data;
 };
 export const getProfitReport = async (startDate?: string, endDate?: string) => {

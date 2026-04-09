@@ -35,8 +35,9 @@ export class TransactionsController {
     findAll(
         @Query('startDate') startDate?: string,
         @Query('endDate') endDate?: string,
+        @Query('search') search?: string,
     ) {
-        return this.transactionsService.findAll(startDate, endDate);
+        return this.transactionsService.findAll(startDate, endDate, search);
     }
 
     @Get('dashboard/metrics')
@@ -53,8 +54,10 @@ export class TransactionsController {
     getSummaryReport(
         @Query('startDate') startDate?: string,
         @Query('endDate') endDate?: string,
+        @Query('sortBy') sortBy: 'qty' | 'revenue' = 'qty',
+        @Query('limit') limit?: string,
     ) {
-        return this.transactionsService.getSummaryReport(startDate, endDate);
+        return this.transactionsService.getSummaryReport(startDate, endDate, sortBy, limit ? parseInt(limit) : 20);
     }
 
     // Static routes MUST come before :id to avoid NestJS swallowing them

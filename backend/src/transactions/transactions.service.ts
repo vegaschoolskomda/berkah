@@ -64,6 +64,47 @@ export class TransactionsService {
         transactionDate?: string; // ISO date backdate: "2026-03-29" — sets transaction createdAt
         cashflowDate?: string;    // ISO date for cashflow: jika diisi, cashflow.date = ini (hari ini = masuk shift hari ini)
     }) {
+        for (let attempt = 0; attempt < 5; attempt++) {
+            try {
+                return await this._createTransaction(data);
+            } catch (e: any) {
+                // P2002 = unique constraint violation. Jika terjadi di invoice number (race condition), retry.
+                if (e?.code === 'P2002' && attempt < 4) {
+                    continue;
+                }
+                throw e;
+            }
+        }
+        throw new BadRequestException('Gagal membuat transaksi setelah beberapa percobaan.');
+    }
+
+    private async _createTransaction(data: {
+        items: {
+            productVariantId: number;
+            quantity: number;
+            widthCm?: number;
+            heightCm?: number;
+            unitType?: string;
+            note?: string;
+            customPrice?: number;
+        }[];
+        paymentMethod: PaymentMethod;
+        discount?: number;
+        shippingCost?: number;
+        customerName?: string;
+        customerPhone?: string;
+        customerAddress?: string;
+        dueDate?: string;
+        downPayment?: number;
+        cashierName?: string;
+        employeeName?: string;
+        bankAccountId?: number;
+        productionPriority?: string;
+        productionDeadline?: string;
+        productionNotes?: string;
+        transactionDate?: string;
+        cashflowDate?: string;
+    }) {
         return this.prisma.$transaction(async (tx) => {
             const settings = await tx.storeSettings.findFirst();
             const enableTax = settings?.enableTax ?? true;
@@ -132,8 +173,8 @@ export class TransactionsService {
                         priceMultiplier = widthCm * heightCm;
                         areaM2 = widthCm * heightCm;
                     } else if (item.unitType === 'cm') {
-                        priceMultiplier = widthCm * heightCm;         // price per cm²
-                        areaM2 = (widthCm * heightCm) / 10000;        // convert to m² for stock
+                        priceMultiplier = (widthCm * heightCm) / 10000; // cm² → m², price is per m²
+                        areaM2 = (widthCm * heightCm) / 10000;          // convert to m² for stock
                     } else if (item.unitType === 'menit') {
                         priceMultiplier = widthCm;
                         areaM2 = widthCm;
@@ -282,15 +323,23 @@ export class TransactionsService {
             // effectiveCashflowDate = tanggal cashflow (bisa hari ini jika user minta masuk shift hari ini)
             const effectiveCashflowDate = data.cashflowDate ? new Date(data.cashflowDate + 'T00:00:00') : effectiveDate;
 
-            const dateStr = effectiveDate.toISOString().split('T')[0].replace(/-/g, '');
-            const startOfEffectiveDay = new Date(effectiveDate);
-            startOfEffectiveDay.setHours(0, 0, 0, 0);
-            const endOfEffectiveDay = new Date(effectiveDate);
-            endOfEffectiveDay.setHours(23, 59, 59, 999);
-            const count = await tx.transaction.count({
-                where: { createdAt: { gte: startOfEffectiveDay, lte: endOfEffectiveDay } }
+            // Format tanggal untuk prefix invoice — pakai local time bukan UTC
+            const y = effectiveDate.getFullYear();
+            const m = String(effectiveDate.getMonth() + 1).padStart(2, '0');
+            const d = String(effectiveDate.getDate()).padStart(2, '0');
+            const dateStr = `${y}${m}${d}`;
+            const prefix = `INV-${dateStr}-`;
+
+            // Cari invoice terakhir hari ini berdasarkan prefix (lebih reliable dari count)
+            const lastToday = await tx.transaction.findFirst({
+                where: { invoiceNumber: { startsWith: prefix } },
+                orderBy: { invoiceNumber: 'desc' },
+                select: { invoiceNumber: true }
             });
-            const invoiceNumber = `INV-${dateStr}-${(count + 1).toString().padStart(4, '0')}`;
+            const nextSeq = lastToday
+                ? parseInt(lastToday.invoiceNumber.slice(prefix.length), 10) + 1
+                : 1;
+            const invoiceNumber = `${prefix}${nextSeq.toString().padStart(4, '0')}`;
 
             // Strip internal flags before creating items
             const itemsForCreate = transactionItemsData.map(({ _requiresProduction, ...rest }: any) => rest);
@@ -514,13 +563,19 @@ export class TransactionsService {
         }
     }
 
-    async findAll(startDate?: string, endDate?: string) {
+    async findAll(startDate?: string, endDate?: string, search?: string) {
         const where: any = {};
         if (startDate && endDate) {
             where.createdAt = {
                 gte: new Date(startDate),
                 lte: new Date(endDate + 'T23:59:59.999Z'),
             };
+        }
+        if (search) {
+            where.OR = [
+                { customerName: { contains: search } },
+                { invoiceNumber: { contains: search } },
+            ];
         }
         return this.prisma.transaction.findMany({
             where,
@@ -608,7 +663,7 @@ export class TransactionsService {
         });
     }
 
-    async getSummaryReport(startDate?: string, endDate?: string) {
+    async getSummaryReport(startDate?: string, endDate?: string, sortBy: 'qty' | 'revenue' = 'qty', limit: number = 20) {
         const whereClause: any = { status: TransactionStatus.PAID };
         if (startDate && endDate) {
             whereClause.createdAt = {
@@ -624,12 +679,39 @@ export class TransactionsService {
             }
         });
 
+        // Hitung prev-period untuk trend comparison
+        let prevItemSales: Record<number, { qty: number, revenue: number }> = {};
+        if (startDate && endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate + 'T23:59:59.999Z');
+            const durationMs = end.getTime() - start.getTime();
+            const prevEnd = new Date(start.getTime() - 1);
+            const prevStart = new Date(prevEnd.getTime() - durationMs);
+            const prevTransactions = await this.prisma.transaction.findMany({
+                where: {
+                    status: TransactionStatus.PAID,
+                    createdAt: { gte: prevStart, lte: prevEnd }
+                },
+                include: {
+                    items: { include: { productVariant: true } }
+                }
+            });
+            for (const t of prevTransactions) {
+                for (const item of t.items) {
+                    const vid = item.productVariantId;
+                    if (!prevItemSales[vid]) prevItemSales[vid] = { qty: 0, revenue: 0 };
+                    prevItemSales[vid].qty += item.quantity;
+                    prevItemSales[vid].revenue += Number(item.priceAtTime) * item.quantity;
+                }
+            }
+        }
+
         let totalRevenue = 0;
         const totalTransactions = transactions.length;
         const paymentMethodsCount: Record<string, number> = { CASH: 0, QRIS: 0, BANK_TRANSFER: 0 };
         const paymentMethodsRevenue: Record<string, number> = { CASH: 0, QRIS: 0, BANK_TRANSFER: 0 };
         const bankTransfersRevenue: Record<string, number> = {};
-        const itemSales: Record<number, { name: string, sku: string, qty: number, revenue: number }> = {};
+        const itemSales: Record<number, { variantId: number, name: string, variantName: string | null, sku: string, qty: number, revenue: number }> = {};
 
         for (const t of transactions) {
             totalRevenue += Number(t.grandTotal);
@@ -645,7 +727,9 @@ export class TransactionsService {
                 const variantId = item.productVariantId;
                 if (!itemSales[variantId]) {
                     itemSales[variantId] = {
+                        variantId,
                         name: item.productVariant.product.name,
+                        variantName: item.productVariant.variantName,
                         sku: item.productVariant.sku,
                         qty: 0,
                         revenue: 0,
@@ -656,6 +740,33 @@ export class TransactionsService {
             }
         }
 
+        const topSellingItems = Object.values(itemSales)
+            .sort((a, b) => sortBy === 'revenue' ? b.revenue - a.revenue : b.qty - a.qty)
+            .slice(0, limit)
+            .map(item => {
+                const prev = prevItemSales[item.variantId];
+                const prevQty = prev?.qty ?? 0;
+                const prevRevenue = prev?.revenue ?? 0;
+                const trendPercent = prevQty === 0
+                    ? null
+                    : Math.round(((item.qty - prevQty) / prevQty) * 1000) / 10;
+                const trendRevenuePercent = prevRevenue === 0
+                    ? null
+                    : Math.round(((item.revenue - prevRevenue) / prevRevenue) * 1000) / 10;
+                return {
+                    variantId: item.variantId,
+                    name: item.name,
+                    variantName: item.variantName,
+                    sku: item.sku,
+                    qty: item.qty,
+                    revenue: item.revenue,
+                    prevQty,
+                    prevRevenue,
+                    trendPercent,
+                    trendRevenuePercent,
+                };
+            });
+
         return {
             totalRevenue,
             totalTransactions,
@@ -663,7 +774,7 @@ export class TransactionsService {
             paymentMethods: paymentMethodsCount,
             paymentMethodsRevenue,
             bankTransfersRevenue,
-            topSellingItems: Object.values(itemSales).sort((a, b) => b.qty - a.qty).slice(0, 5)
+            topSellingItems,
         };
     }
 
@@ -928,7 +1039,7 @@ export class TransactionsService {
                 let priceMultiplier = 0;
                 let areaM2 = 0;
                 if (unit === 'm') { priceMultiplier = w * h; areaM2 = w * h; }
-                else if (unit === 'cm') { priceMultiplier = w * h; areaM2 = (w * h) / 10000; }
+                else if (unit === 'cm') { priceMultiplier = (w * h) / 10000; areaM2 = (w * h) / 10000; } // cm² → m²
                 else if (unit === 'menit') { priceMultiplier = w; areaM2 = w; }
                 else { priceMultiplier = (w * h) / 10000; areaM2 = (w * h) / 10000; }
                 areaCm2 = areaM2 * 10000;
@@ -1030,7 +1141,7 @@ export class TransactionsService {
                     newPriceMultiplier = newW * newH;
                     newAreaM2 = newW * newH;
                 } else if (unitType === 'cm') {
-                    newPriceMultiplier = newW * newH;
+                    newPriceMultiplier = (newW * newH) / 10000; // cm² → m²
                     newAreaM2 = (newW * newH) / 10000;
                 } else if (unitType === 'menit') {
                     newPriceMultiplier = newW;

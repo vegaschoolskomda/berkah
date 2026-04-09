@@ -1,17 +1,22 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getSalesSummary, getTransactions, getSettings, getBankAccounts } from '@/lib/api';
 import { updateTransactionPaymentMethod } from '@/lib/api/transactions';
 import { mapTransactionToReceipt, handlePrintSnap, handleShareWA } from '@/lib/receipt';
 import { exportToExcel, exportToPDF } from '@/lib/export';
-import { Download, BarChart, CreditCard, Banknote, Landmark, X, Receipt, Printer, MessageCircle, FileSpreadsheet, Pencil, Check, CalendarDays, PenSquare } from "lucide-react";
+import {
+    Download, BarChart2, CreditCard, Banknote, Landmark, X, Receipt, Printer, MessageCircle,
+    FileSpreadsheet, Pencil, Check, CalendarDays, PenSquare, TrendingUp, TrendingDown,
+    Search, ChevronDown, ChevronRight, BarChart, Minus
+} from "lucide-react";
 import dayjs from "dayjs";
 import { useCurrentUser } from '@/hooks/useCurrentUser';
 import EditTransactionModal from './EditTransactionModal';
 
 type SalesPeriodKey = 'today' | 'yesterday' | 'this_week' | 'this_month' | 'last_month' | 'this_year' | 'all' | 'custom';
+type ReportTab = 'ringkasan' | 'trend' | 'histori';
 
 const SALES_PERIODS: { key: SalesPeriodKey; label: string }[] = [
     { key: 'today', label: 'Hari Ini' },
@@ -38,22 +43,45 @@ function getSalesPeriodDates(period: SalesPeriodKey, customStart: string, custom
     }
 }
 
+function TrendBadge({ percent, isRevenue = false }: { percent: number | null; isRevenue?: boolean }) {
+    if (percent === null) {
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border/50">Baru</span>;
+    }
+    if (percent === 0) {
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-muted text-muted-foreground border border-border/50"><Minus className="w-3 h-3" />0%</span>;
+    }
+    if (percent > 0) {
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-500/10 text-green-600 border border-green-500/20"><TrendingUp className="w-3 h-3" />+{percent}%</span>;
+    }
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-red-500/10 text-red-600 border border-red-500/20"><TrendingDown className="w-3 h-3" />{percent}%</span>;
+}
+
 export default function SalesReportPage() {
     const queryClient = useQueryClient();
 
     const [period, setPeriod] = useState<SalesPeriodKey>('this_month');
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
+    const [activeTab, setActiveTab] = useState<ReportTab>('ringkasan');
+    const [trendSortBy, setTrendSortBy] = useState<'qty' | 'revenue'>('qty');
+    const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [expandedTxId, setExpandedTxId] = useState<number | null>(null);
+
+    useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+        return () => clearTimeout(t);
+    }, [searchQuery]);
 
     const { startDate, endDate } = getSalesPeriodDates(period, customStart, customEnd);
 
     const { data: summary, isLoading: isLoadingSummary } = useQuery({
-        queryKey: ['salesSummary', startDate, endDate],
-        queryFn: () => getSalesSummary(startDate, endDate),
+        queryKey: ['salesSummary', startDate, endDate, trendSortBy],
+        queryFn: () => getSalesSummary(startDate, endDate, trendSortBy, 20),
     });
     const { data: transactions, isLoading: isLoadingTxs } = useQuery({
-        queryKey: ['transactions', startDate, endDate],
-        queryFn: () => getTransactions(startDate, endDate),
+        queryKey: ['transactions', startDate, endDate, debouncedSearch],
+        queryFn: () => getTransactions(startDate, endDate, debouncedSearch || undefined),
     });
     const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
     const { data: bankAccounts } = useQuery({ queryKey: ['bank-accounts'], queryFn: getBankAccounts });
@@ -81,10 +109,12 @@ export default function SalesReportPage() {
         const data = transactions.map((t: any) => ({
             'No Invoice': t.invoiceNumber,
             'Tanggal': dayjs(t.createdAt).format('DD MMM YYYY HH:mm'),
+            'Pelanggan': t.customerName || '-',
             'Kasir': t.cashierName || '-',
             'Subtotal': Number(t.totalAmount),
             'Diskon': Number(t.discount),
             'Pajak': Number(t.tax),
+            'Ongkos Kirim': Number(t.shippingCost),
             'Total Bersih': Number(t.grandTotal),
             'Metode Pembayaran': t.paymentMethod,
             'Status': t.status
@@ -94,11 +124,11 @@ export default function SalesReportPage() {
 
     const handleExportPDF = () => {
         if (!transactions?.length) return alert('Tidak ada transaksi untuk di-export');
-        const headers = ['Invoice', 'Tanggal', 'Kasir', 'Metode', 'Status', 'Total'];
+        const headers = ['Invoice', 'Tanggal', 'Pelanggan', 'Metode', 'Status', 'Total'];
         const body = transactions.map((t: any) => [
             t.invoiceNumber,
             dayjs(t.createdAt).format('DD MMM YYYY HH:mm'),
-            t.cashierName || '-',
+            t.customerName || '-',
             t.paymentMethod,
             t.status,
             `Rp ${Number(t.grandTotal).toLocaleString('id-ID')}`
@@ -106,11 +136,17 @@ export default function SalesReportPage() {
         exportToPDF('Laporan Seluruh Transaksi', headers, body, `Laporan_Transaksi_${dayjs().format('YYYYMMDD')}.pdf`);
     };
 
-    if (isLoadingSummary || isLoadingTxs) {
+    if (isLoadingSummary && activeTab !== 'histori') {
         return <div className="flex h-screen items-center justify-center text-muted-foreground">Memuat Laporan Kelola Penjualan...</div>;
     }
 
     const periodLabel = SALES_PERIODS.find(p => p.key === period)?.label ?? '';
+    const topItems: any[] = summary?.topSellingItems ?? [];
+    const maxQty = topItems[0]?.qty || 1;
+    const maxRevenue = topItems[0]?.revenue || 1;
+
+    const RANK_COLORS = ['text-yellow-500', 'text-slate-400', 'text-amber-600'];
+    const RANK_BG = ['bg-yellow-500/10 border-yellow-500/30', 'bg-slate-400/10 border-slate-400/30', 'bg-amber-500/10 border-amber-500/30'];
 
     return (
         <div className="space-y-6">
@@ -180,145 +216,330 @@ export default function SalesReportPage() {
                 )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="glass p-6 rounded-xl border border-border flex flex-col justify-center">
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Total Pendapatan</p>
-                    <div className="flex items-baseline gap-2">
-                        <h2 className="text-3xl font-bold text-foreground">Rp {Number(summary?.totalRevenue || 0).toLocaleString('id-ID')}</h2>
-                    </div>
-                </div>
-                <div className="glass p-6 rounded-xl border border-border flex flex-col justify-center">
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Volume Transaksi</p>
-                    <h2 className="text-3xl font-bold text-foreground">{summary?.totalTransactions || 0}<span className="text-lg text-muted-foreground font-normal ml-1">struk</span></h2>
-                </div>
-                <div className="glass p-6 rounded-xl border border-border flex flex-col justify-center">
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Rata-rata Order (Basket Size)</p>
-                    <h2 className="text-3xl font-bold text-foreground">Rp {Math.round(summary?.averageTransactionValue || 0).toLocaleString('id-ID')}<span className="text-lg text-muted-foreground font-normal ml-1">/trx</span></h2>
-                </div>
+            {/* Tabs */}
+            <div className="flex gap-1 p-1 bg-muted/40 rounded-xl border border-border w-fit">
+                {([
+                    { key: 'ringkasan', label: 'Ringkasan', icon: BarChart },
+                    { key: 'trend', label: 'Trend Produk', icon: TrendingUp },
+                    { key: 'histori', label: 'Histori Log', icon: Receipt },
+                ] as const).map(({ key, label, icon: Icon }) => (
+                    <button
+                        key={key}
+                        onClick={() => setActiveTab(key)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                            activeTab === key
+                                ? 'bg-background text-foreground shadow-sm border border-border/50'
+                                : 'text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                        <Icon className="h-4 w-4" />
+                        {label}
+                    </button>
+                ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Produk Terlaris */}
-                <div className="glass rounded-xl border border-border p-6 flex flex-col">
-                    <div className="flex items-center gap-3 mb-4">
-                        <BarChart className="h-5 w-5 text-primary" />
-                        <h3 className="text-lg font-semibold text-foreground">Top 5 Produk Terlaris</h3>
-                    </div>
-                    <div className="space-y-4 flex-1">
-                        {summary?.topSellingItems?.map((item: any, idx: number) => (
-                            <div key={idx} className="flex items-center justify-between border-b border-border/50 pb-3 last:border-0 last:pb-0">
-                                <div>
-                                    <p className="font-semibold text-foreground text-sm">{item.name}</p>
-                                    <p className="text-xs text-muted-foreground">{item.sku}</p>
-                                </div>
-                                <div className="text-right">
-                                    <p className="font-bold text-primary">{item.qty} pcs</p>
-                                    <p className="text-xs text-muted-foreground">Rp {Number(item.revenue).toLocaleString('id-ID')}</p>
-                                </div>
+            {/* Tab: Ringkasan */}
+            {activeTab === 'ringkasan' && (
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div className="glass p-6 rounded-xl border border-border flex flex-col justify-center">
+                            <p className="text-sm font-medium text-muted-foreground mb-1">Total Pendapatan</p>
+                            <div className="flex items-baseline gap-2">
+                                <h2 className="text-3xl font-bold text-foreground">Rp {Number(summary?.totalRevenue || 0).toLocaleString('id-ID')}</h2>
                             </div>
-                        ))}
-                        {(!summary?.topSellingItems || summary.topSellingItems.length === 0) && (
-                            <p className="text-sm text-muted-foreground text-center py-4">Belum ada data penjualan.</p>
-                        )}
+                        </div>
+                        <div className="glass p-6 rounded-xl border border-border flex flex-col justify-center">
+                            <p className="text-sm font-medium text-muted-foreground mb-1">Volume Transaksi</p>
+                            <h2 className="text-3xl font-bold text-foreground">{summary?.totalTransactions || 0}<span className="text-lg text-muted-foreground font-normal ml-1">struk</span></h2>
+                        </div>
+                        <div className="glass p-6 rounded-xl border border-border flex flex-col justify-center">
+                            <p className="text-sm font-medium text-muted-foreground mb-1">Rata-rata Order (Basket Size)</p>
+                            <h2 className="text-3xl font-bold text-foreground">Rp {Math.round(summary?.averageTransactionValue || 0).toLocaleString('id-ID')}<span className="text-lg text-muted-foreground font-normal ml-1">/trx</span></h2>
+                        </div>
                     </div>
-                </div>
 
-                {/* Metode Pembayaran */}
-                <div className="glass rounded-xl border border-border p-6 flex flex-col">
-                    <h3 className="text-lg font-semibold text-foreground mb-4">Metode Pembayaran (Distribusi)</h3>
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50">
-                            <div className="flex items-center gap-3">
-                                <Banknote className="h-5 w-5 text-green-500 shrink-0" />
-                                <div>
-                                    <span className="font-medium block text-sm">Cash / Tunai</span>
-                                    <span className="text-xs text-muted-foreground">{summary?.paymentMethods?.CASH || 0} trx</span>
-                                </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Produk Terlaris - compact top 5 */}
+                        <div className="glass rounded-xl border border-border p-6 flex flex-col">
+                            <div className="flex items-center gap-3 mb-4">
+                                <BarChart2 className="h-5 w-5 text-primary" />
+                                <h3 className="text-lg font-semibold text-foreground">Top 5 Produk Terlaris</h3>
                             </div>
-                            <span className="font-bold text-base text-green-600">Rp {Number(summary?.paymentMethodsRevenue?.CASH || 0).toLocaleString('id-ID')}</span>
-                        </div>
-                        <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50">
-                            <div className="flex items-center gap-3">
-                                <CreditCard className="h-5 w-5 text-blue-500 shrink-0" />
-                                <div>
-                                    <span className="font-medium block text-sm">QRIS</span>
-                                    <span className="text-xs text-muted-foreground">{summary?.paymentMethods?.QRIS || 0} trx</span>
-                                </div>
-                            </div>
-                            <span className="font-bold text-base text-blue-600">Rp {Number(summary?.paymentMethodsRevenue?.QRIS || 0).toLocaleString('id-ID')}</span>
-                        </div>
-                        <div className="p-4 bg-muted/30 rounded-lg border border-border/50 space-y-3">
-                            <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                    <Landmark className="h-5 w-5 text-orange-500 shrink-0" />
-                                    <div>
-                                        <span className="font-medium block text-sm">Transfer Bank</span>
-                                        <span className="text-xs text-muted-foreground">{summary?.paymentMethods?.BANK_TRANSFER || 0} trx</span>
+                            <div className="space-y-4 flex-1">
+                                {topItems.slice(0, 5).map((item: any, idx: number) => (
+                                    <div key={idx} className="flex items-center justify-between border-b border-border/50 pb-3 last:border-0 last:pb-0">
+                                        <div>
+                                            <p className="font-semibold text-foreground text-sm">
+                                                {item.name}{item.variantName ? ` - ${item.variantName}` : ''}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">{item.sku}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-bold text-primary">{item.qty} pcs</p>
+                                            <p className="text-xs text-muted-foreground">Rp {Number(item.revenue).toLocaleString('id-ID')}</p>
+                                        </div>
                                     </div>
-                                </div>
-                                <span className="font-bold text-base text-orange-600">Rp {Number(summary?.paymentMethodsRevenue?.BANK_TRANSFER || 0).toLocaleString('id-ID')}</span>
+                                ))}
+                                {topItems.length === 0 && (
+                                    <p className="text-sm text-muted-foreground text-center py-4">Belum ada data penjualan.</p>
+                                )}
                             </div>
-                            {summary?.bankTransfersRevenue && Object.keys(summary.bankTransfersRevenue).length > 0 && (
-                                <div className="pt-3 border-t border-border/50 space-y-2">
-                                    {Object.entries(summary.bankTransfersRevenue).map(([bankName, amount]: any) => (
-                                        <div key={bankName} className="flex justify-between items-center text-sm pl-8">
-                                            <span className="text-muted-foreground uppercase text-xs font-semibold">{bankName}</span>
-                                            <span className="font-bold text-foreground text-xs">Rp {Number(amount).toLocaleString('id-ID')}</span>
+                        </div>
+
+                        {/* Metode Pembayaran */}
+                        <div className="glass rounded-xl border border-border p-6 flex flex-col">
+                            <h3 className="text-lg font-semibold text-foreground mb-4">Metode Pembayaran (Distribusi)</h3>
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50">
+                                    <div className="flex items-center gap-3">
+                                        <Banknote className="h-5 w-5 text-green-500 shrink-0" />
+                                        <div>
+                                            <span className="font-medium block text-sm">Cash / Tunai</span>
+                                            <span className="text-xs text-muted-foreground">{summary?.paymentMethods?.CASH || 0} trx</span>
                                         </div>
-                                    ))}
+                                    </div>
+                                    <span className="font-bold text-base text-green-600">Rp {Number(summary?.paymentMethodsRevenue?.CASH || 0).toLocaleString('id-ID')}</span>
                                 </div>
-                            )}
+                                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50">
+                                    <div className="flex items-center gap-3">
+                                        <CreditCard className="h-5 w-5 text-blue-500 shrink-0" />
+                                        <div>
+                                            <span className="font-medium block text-sm">QRIS</span>
+                                            <span className="text-xs text-muted-foreground">{summary?.paymentMethods?.QRIS || 0} trx</span>
+                                        </div>
+                                    </div>
+                                    <span className="font-bold text-base text-blue-600">Rp {Number(summary?.paymentMethodsRevenue?.QRIS || 0).toLocaleString('id-ID')}</span>
+                                </div>
+                                <div className="p-4 bg-muted/30 rounded-lg border border-border/50 space-y-3">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <Landmark className="h-5 w-5 text-orange-500 shrink-0" />
+                                            <div>
+                                                <span className="font-medium block text-sm">Transfer Bank</span>
+                                                <span className="text-xs text-muted-foreground">{summary?.paymentMethods?.BANK_TRANSFER || 0} trx</span>
+                                            </div>
+                                        </div>
+                                        <span className="font-bold text-base text-orange-600">Rp {Number(summary?.paymentMethodsRevenue?.BANK_TRANSFER || 0).toLocaleString('id-ID')}</span>
+                                    </div>
+                                    {summary?.bankTransfersRevenue && Object.keys(summary.bankTransfersRevenue).length > 0 && (
+                                        <div className="pt-3 border-t border-border/50 space-y-2">
+                                            {Object.entries(summary.bankTransfersRevenue).map(([bankName, amount]: any) => (
+                                                <div key={bankName} className="flex justify-between items-center text-sm pl-8">
+                                                    <span className="text-muted-foreground uppercase text-xs font-semibold">{bankName}</span>
+                                                    <span className="font-bold text-foreground text-xs">Rp {Number(amount).toLocaleString('id-ID')}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </div>
+                </>
+            )}
 
-            <div className="glass rounded-xl border border-border overflow-hidden pb-10">
-                <div className="px-6 py-4 border-b border-border bg-card/50 flex items-center justify-between">
-                    <h3 className="text-base font-semibold text-foreground">
-                        Histori Transaksi — {periodLabel}
-                    </h3>
-                    <span className="text-sm text-muted-foreground">{recentTransactions.length} transaksi</span>
-                </div>
-                <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-border">
-                        <thead className="bg-muted/50">
-                            <tr>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Invoice</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Waktu</th>
-                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Metode</th>
-                                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-card divide-y divide-border">
-                            {recentTransactions.map((trx: any) => (
-                                <tr key={trx.id} onClick={() => setSelectedTransaction(trx)} className="hover:bg-muted/30 transition-colors cursor-pointer">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">
-                                        <div className="flex items-center gap-2">
-                                            {trx.status === 'PARTIAL' && <span className="bg-orange-500/10 text-orange-600 border border-orange-500/20 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">DP</span>}
-                                            {trx.invoiceNumber}
+            {/* Tab: Trend Produk */}
+            {activeTab === 'trend' && (
+                <div className="glass rounded-xl border border-border overflow-hidden">
+                    <div className="px-6 py-4 border-b border-border bg-card/50 flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                            <TrendingUp className="h-5 w-5 text-primary" />
+                            <div>
+                                <h3 className="text-base font-semibold text-foreground">Trend Produk</h3>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    {period !== 'all'
+                                        ? 'Badge tren dibandingkan vs periode setara sebelumnya'
+                                        : 'Pilih periode spesifik untuk melihat perbandingan tren'}
+                                </p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-1 p-1 bg-muted/50 rounded-lg border border-border">
+                            <button
+                                onClick={() => setTrendSortBy('qty')}
+                                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${trendSortBy === 'qty' ? 'bg-background text-foreground shadow-sm border border-border/50' : 'text-muted-foreground hover:text-foreground'}`}
+                            >
+                                Qty Terjual
+                            </button>
+                            <button
+                                onClick={() => setTrendSortBy('revenue')}
+                                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${trendSortBy === 'revenue' ? 'bg-background text-foreground shadow-sm border border-border/50' : 'text-muted-foreground hover:text-foreground'}`}
+                            >
+                                Revenue
+                            </button>
+                        </div>
+                    </div>
+
+                    {isLoadingSummary ? (
+                        <div className="p-12 text-center text-muted-foreground text-sm">Memuat data trend...</div>
+                    ) : topItems.length === 0 ? (
+                        <div className="p-12 text-center text-muted-foreground text-sm">Belum ada data penjualan pada periode ini.</div>
+                    ) : (
+                        <div className="divide-y divide-border">
+                            {topItems.map((item: any, idx: number) => {
+                                const isTop3 = idx < 3;
+                                const value = trendSortBy === 'qty' ? item.qty : item.revenue;
+                                const maxValue = trendSortBy === 'qty' ? maxQty : maxRevenue;
+                                const barWidth = Math.max(4, Math.round((value / maxValue) * 100));
+                                const trendVal = trendSortBy === 'qty' ? item.trendPercent : item.trendRevenuePercent;
+
+                                return (
+                                    <div key={item.variantId} className="px-6 py-4 flex items-center gap-4 hover:bg-muted/20 transition-colors">
+                                        {/* Rank */}
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold border shrink-0 ${isTop3 ? RANK_BG[idx] : 'bg-muted/50 border-border/50'}`}>
+                                            <span className={isTop3 ? RANK_COLORS[idx] : 'text-muted-foreground'}>
+                                                #{idx + 1}
+                                            </span>
                                         </div>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">{dayjs(trx.createdAt).format('DD MMM YYYY HH:mm')}</td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
-                                            {trx.paymentMethod}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-foreground text-right">
-                                        Rp {Number(trx.grandTotal).toLocaleString('id-ID')}
-                                    </td>
-                                </tr>
-                            ))}
-                            {recentTransactions.length === 0 && (
-                                <tr>
-                                    <td colSpan={4} className="px-6 py-8 text-center text-sm text-muted-foreground">Belum ada transaksi tercatat.</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
+
+                                        {/* Product info + bar */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <p className="font-semibold text-foreground text-sm truncate">
+                                                    {item.name}{item.variantName ? ` - ${item.variantName}` : ''}
+                                                </p>
+                                            </div>
+                                            <p className="text-xs text-muted-foreground mb-2">{item.sku}</p>
+                                            <div className="h-1.5 w-full bg-muted/50 rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-primary/50 rounded-full transition-all duration-500"
+                                                    style={{ width: `${barWidth}%` }}
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Value */}
+                                        <div className="text-right shrink-0">
+                                            {trendSortBy === 'qty' ? (
+                                                <p className="font-bold text-foreground text-sm">{item.qty} <span className="text-xs font-normal text-muted-foreground">pcs</span></p>
+                                            ) : (
+                                                <p className="font-bold text-foreground text-sm">Rp {Number(item.revenue).toLocaleString('id-ID')}</p>
+                                            )}
+                                            {trendSortBy === 'qty' && (
+                                                <p className="text-xs text-muted-foreground">Rp {Number(item.revenue).toLocaleString('id-ID')}</p>
+                                            )}
+                                            {trendSortBy === 'revenue' && (
+                                                <p className="text-xs text-muted-foreground">{item.qty} pcs</p>
+                                            )}
+                                        </div>
+
+                                        {/* Trend badge */}
+                                        <div className="shrink-0">
+                                            <TrendBadge percent={trendVal} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
-            </div>
+            )}
+
+            {/* Tab: Histori Log */}
+            {activeTab === 'histori' && (
+                <div className="glass rounded-xl border border-border overflow-hidden pb-10">
+                    <div className="px-6 py-4 border-b border-border bg-card/50 space-y-3">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-base font-semibold text-foreground">
+                                Histori Log Penjualan — {periodLabel}
+                            </h3>
+                            <span className="text-sm text-muted-foreground">{recentTransactions.length} transaksi</span>
+                        </div>
+                        {/* Search */}
+                        <div className="relative max-w-sm">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <input
+                                type="text"
+                                placeholder="Cari nama pelanggan / no invoice..."
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                className="w-full pl-9 pr-4 py-2 text-sm border border-border rounded-lg bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            />
+                        </div>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-border">
+                            <thead className="bg-muted/50">
+                                <tr>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Invoice</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Waktu</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Pelanggan</th>
+                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider">Metode</th>
+                                    <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-muted-foreground uppercase tracking-wider">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-card divide-y divide-border">
+                                {isLoadingTxs ? (
+                                    <tr>
+                                        <td colSpan={5} className="px-6 py-8 text-center text-sm text-muted-foreground">Memuat transaksi...</td>
+                                    </tr>
+                                ) : (
+                                    <>
+                                        {recentTransactions.map((trx: any) => (
+                                            <Fragment key={trx.id}>
+                                                <tr onClick={() => setSelectedTransaction(trx)} className="hover:bg-muted/30 transition-colors cursor-pointer">
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-primary">
+                                                        <div className="flex items-center gap-2">
+                                                            <button
+                                                                onClick={e => { e.stopPropagation(); setExpandedTxId(prev => prev === trx.id ? null : trx.id); }}
+                                                                className="p-0.5 text-muted-foreground hover:text-foreground rounded transition-colors"
+                                                                title="Lihat item"
+                                                            >
+                                                                {expandedTxId === trx.id
+                                                                    ? <ChevronDown className="w-3.5 h-3.5" />
+                                                                    : <ChevronRight className="w-3.5 h-3.5" />
+                                                                }
+                                                            </button>
+                                                            {trx.status === 'PARTIAL' && <span className="bg-orange-500/10 text-orange-600 border border-orange-500/20 px-1.5 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider">DP</span>}
+                                                            {trx.invoiceNumber}
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground/80">{dayjs(trx.createdAt).format('DD MMM YYYY HH:mm')}</td>
+                                                    <td className="px-6 py-4 text-sm text-foreground/80 max-w-[160px] truncate">{trx.customerName || <span className="text-muted-foreground">—</span>}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap">
+                                                        <span className="inline-flex items-center rounded-md bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+                                                            {trx.paymentMethod}
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-foreground text-right">
+                                                        Rp {Number(trx.grandTotal).toLocaleString('id-ID')}
+                                                    </td>
+                                                </tr>
+                                                {expandedTxId === trx.id && (
+                                                    <tr className="bg-muted/20">
+                                                        <td colSpan={5} className="px-6 py-3">
+                                                            <div className="space-y-1.5">
+                                                                {trx.items?.map((item: any) => (
+                                                                    <div key={item.id} className="flex justify-between items-center text-sm">
+                                                                        <span className="text-foreground/80">
+                                                                            {item.productVariant?.product?.name}
+                                                                            {item.productVariant?.variantName ? ` - ${item.productVariant.variantName}` : ''}
+                                                                            {item.widthCm && item.heightCm ? ` (${item.widthCm}×${item.heightCm})` : ''}
+                                                                        </span>
+                                                                        <span className="text-muted-foreground text-xs whitespace-nowrap ml-4">
+                                                                            {item.quantity} × Rp {Number(item.priceAtTime).toLocaleString('id-ID')} = <span className="font-semibold text-foreground">Rp {(item.quantity * Number(item.priceAtTime)).toLocaleString('id-ID')}</span>
+                                                                        </span>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </Fragment>
+                                        ))}
+                                        {recentTransactions.length === 0 && (
+                                            <tr>
+                                                <td colSpan={5} className="px-6 py-8 text-center text-sm text-muted-foreground">
+                                                    {debouncedSearch ? `Tidak ada transaksi untuk "${debouncedSearch}"` : 'Belum ada transaksi tercatat.'}
+                                                </td>
+                                            </tr>
+                                        )}
+                                    </>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {/* Transaction Detail Modal */}
             {selectedTransaction && (
@@ -350,6 +571,10 @@ export default function SalesReportPage() {
                                     <p className="font-medium text-foreground">{selectedTransaction.cashierName || '-'}</p>
                                 </div>
                                 <div>
+                                    <p className="text-muted-foreground text-xs mb-1">Pelanggan</p>
+                                    <p className="font-medium text-foreground">{selectedTransaction.customerName || '-'}</p>
+                                </div>
+                                <div className="col-span-2">
                                     <p className="text-muted-foreground text-xs mb-1">Status Pembayaran</p>
                                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${selectedTransaction.status === 'PAID' ? 'bg-green-500/10 text-green-600 border border-green-500/20' :
                                         selectedTransaction.status === 'PARTIAL' ? 'bg-orange-500/10 text-orange-600 border border-orange-500/20' :
@@ -449,6 +674,12 @@ export default function SalesReportPage() {
                                     <div className="flex justify-between text-muted-foreground">
                                         <span>Pajak</span>
                                         <span>Rp {Number(selectedTransaction.tax).toLocaleString('id-ID')}</span>
+                                    </div>
+                                )}
+                                {Number(selectedTransaction.shippingCost) > 0 && (
+                                    <div className="flex justify-between text-muted-foreground">
+                                        <span>Ongkos Kirim</span>
+                                        <span>Rp {Number(selectedTransaction.shippingCost).toLocaleString('id-ID')}</span>
                                     </div>
                                 )}
                                 <div className="flex justify-between font-bold text-foreground pt-2 border-t border-border/50">

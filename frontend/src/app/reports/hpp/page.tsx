@@ -259,7 +259,12 @@ function HppCalculatorContent() {
                 name: isCustom ? vc.customMaterialName : (variant?.variantName ? `${variant.product?.name} - ${variant.variantName}` : variant?.product?.name || "Unknown"),
                 usageAmount: Number(vc.usageAmount),
                 usageUnit: vc.usageUnit,
-                price: isCustom ? Number(vc.customPrice || 0) : Number(variant?.price || 0),
+                price: isCustom ? Number(vc.customPrice || 0) : (() => {
+                    const tiers: any[] = variant?.priceTiers || [];
+                    if (tiers.length === 0) return Number(variant?.price || 0);
+                    const sorted = [...tiers].sort((a: any, b: any) => Number(a.minQty) - Number(b.minQty));
+                    return Number(sorted[0].price);
+                })(),
                 priceUnit: variant?.product?.unit?.name || 'unit',
                 isCustom
             };
@@ -927,14 +932,21 @@ function HppCalculatorContent() {
         }
         if (!foundVariant || !foundProduct) return;
         const unit = foundProduct.unit?.name || 'pcs';
+        const effectivePrice = (() => {
+            const tiers: any[] = foundVariant.priceTiers || [];
+            if (tiers.length === 0) return Number(foundVariant.price);
+            const sorted = [...tiers].sort((a: any, b: any) => Number(a.minQty) - Number(b.minQty));
+            return Number(sorted[0].price);
+        })();
         setVariableCosts(prev => prev.map(row =>
             row.id === rowId ? {
                 ...row,
                 productVariantId: foundVariant.id,
                 name: foundVariant.variantName ? `${foundProduct.name} - ${foundVariant.variantName}` : foundProduct.name,
-                price: Number(foundVariant.price),
+                price: effectivePrice,
                 priceUnit: unit,
-                usageUnit: unit, // auto-sync usage unit to stock's unit
+                // Hanya inisialisasi usageUnit saat pertama pilih; re-pilih tidak overwrite
+                usageUnit: row.productVariantId ? row.usageUnit : unit,
             } : row
         ));
     };

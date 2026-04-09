@@ -51,10 +51,7 @@ export default function POSPage() {
 
     const createCustomerMutation = useMutation({
         mutationFn: createCustomer,
-        onSuccess: () => {
-            refetchCustomers();
-            alert('Pelanggan berhasil disimpan!');
-        }
+        onSuccess: () => { refetchCustomers(); }
     });
 
     const [mobileCartOpen, setMobileCartOpen] = useState(false);
@@ -70,6 +67,7 @@ export default function POSPage() {
     const [customerAddress, setCustomerAddress] = useState('');
     const [isCustomerModalOpen, setCustomerModalOpen] = useState(false);
     const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+    const [customerSuggestField, setCustomerSuggestField] = useState<'name' | 'phone' | null>(null);
     const [dueDate, setDueDate] = useState('');
     const [downPayment, setDownPayment] = useState<string>('');
     const [discount, setDiscount] = useState<string>('');
@@ -324,6 +322,13 @@ export default function POSPage() {
                     snap.transactionId = data?.id;
                     setCheckoutModalOpen(false);
                     clearCart();
+                    // Auto-save customer baru berdasarkan nomor HP (unique key)
+                    const trimPhone = customerPhone.trim();
+                    const trimName = customerName.trim();
+                    if (trimPhone && trimName) {
+                        const exists = (customers as any[])?.some((c: any) => c.phone === trimPhone);
+                        if (!exists) createCustomerMutation.mutate({ name: trimName, phone: trimPhone, address: customerAddress.trim() || undefined });
+                    }
                     setCustomerName(''); setCustomerPhone(''); setCustomerAddress('');
                     setProductionPriority('NORMAL'); setProductionDeadline(''); setProductionNotes('');
                     setPaymentMethod('CASH'); setSelectedBankId('');
@@ -364,16 +369,16 @@ export default function POSPage() {
         const h = areaModal.unitType === 'menit' ? 1 : (Number(areaModal.heightCm) || 0);
         if (w <= 0 || (areaModal.unitType !== 'menit' && h <= 0)) return null;
 
-        // priceMultiplier: raw area in input unit (matches how price is stored per product)
-        // areaForStock: always m² (for stock comparison)
+        // price is always per-m² for AREA_BASED products
+        // both priceMultiplier and areaForStock use m²
         let priceMultiplier = 0;
         let areaForStock = 0;
         if (areaModal.unitType === 'm') {
             priceMultiplier = w * h;
             areaForStock = w * h;
         } else if (areaModal.unitType === 'cm') {
-            priceMultiplier = w * h;              // price per cm²
-            areaForStock = (w * h) / 10000;       // convert to m² for stock check
+            priceMultiplier = (w * h) / 10000;    // cm² → m², price is per m²
+            areaForStock = (w * h) / 10000;
         } else if (areaModal.unitType === 'menit') {
             priceMultiplier = w;
             areaForStock = w;
@@ -790,17 +795,13 @@ export default function POSPage() {
                                         <span className="font-bold">
                                             {areaModal.unitType === 'menit'
                                                 ? `${areaPreview.priceMultiplier.toLocaleString('id-ID')} unit`
-                                                : areaModal.unitType === 'cm'
-                                                ? `${Math.round(areaPreview.priceMultiplier).toLocaleString('id-ID')} cm²`
-                                                : `${areaPreview.priceMultiplier.toLocaleString('id-ID')} m²`}
+                                                : `${areaPreview.priceMultiplier.toFixed(4)} m²`}
                                         </span>
                                     </div>
                                     <div className="flex justify-between text-sm">
                                         <span className="text-muted-foreground">Harga Dasar</span>
                                         <span className="font-medium">
-                                            {areaModal.unitType === 'cm'
-                                                ? `Rp ${areaPreview.unitPrice.toLocaleString('id-ID')} /cm²`
-                                                : areaModal.unitType === 'menit'
+                                            {areaModal.unitType === 'menit'
                                                 ? `Rp ${areaPreview.unitPrice.toLocaleString('id-ID')} /unit`
                                                 : `Rp ${areaPreview.unitPrice.toLocaleString('id-ID')} /m²`}
                                         </span>
@@ -998,32 +999,102 @@ export default function POSPage() {
                             </div>
 
                             {/* ── Data Pelanggan ── */}
-                            <div className="px-4 pt-3 pb-3 border-b border-border space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Pelanggan <span className="text-destructive">*Wajib</span></p>
-                                    <button type="button" onClick={() => setCustomerModalOpen(true)}
-                                        className="text-[11px] font-semibold bg-primary/10 text-primary hover:bg-primary/20 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1">
-                                        <Search className="w-3 h-3" /> Cari
-                                    </button>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div className="relative">
-                                        <input type="text" placeholder="Nama Pelanggan *" value={customerName} onChange={e => setCustomerName(e.target.value)}
+                            {(() => {
+                                const fillCustomer = (c: any) => {
+                                    setCustomerName(c.name);
+                                    setCustomerPhone(c.phone || '');
+                                    setCustomerAddress(c.address || '');
+                                    setCustomerSuggestField(null);
+                                };
+                                const nameSuggestions = customerSuggestField === 'name' && customerName.trim().length > 0
+                                    ? (customers as any[] || []).filter((c: any) =>
+                                        c.name.toLowerCase().includes(customerName.toLowerCase()) ||
+                                        (c.phone && c.phone.includes(customerName))
+                                    ).slice(0, 6)
+                                    : [];
+                                const phoneSuggestions = customerSuggestField === 'phone' && customerPhone.trim().length > 0
+                                    ? (customers as any[] || []).filter((c: any) =>
+                                        (c.phone && c.phone.includes(customerPhone)) ||
+                                        c.name.toLowerCase().includes(customerPhone.toLowerCase())
+                                    ).slice(0, 6)
+                                    : [];
+                                const isExistingPhone = !!(customers as any[] || []).find((c: any) => c.phone === customerPhone.trim());
+                                return (
+                                    <div className="px-4 pt-3 pb-3 border-b border-border space-y-2">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                                Pelanggan <span className="text-destructive">*Wajib</span>
+                                            </p>
+                                            {customerPhone.trim() && (
+                                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${isExistingPhone ? 'bg-green-500/10 text-green-600' : 'bg-blue-500/10 text-blue-600'}`}>
+                                                    {isExistingPhone ? '✓ Pelanggan lama' : '+ Pelanggan baru'}
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2">
+                                            {/* Field: Nama */}
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    placeholder="Nama Pelanggan *"
+                                                    value={customerName}
+                                                    onChange={e => setCustomerName(e.target.value)}
+                                                    onFocus={() => setCustomerSuggestField('name')}
+                                                    onBlur={() => setTimeout(() => setCustomerSuggestField(null), 150)}
+                                                    className="w-full px-2.5 py-1.5 bg-background border border-border rounded-lg outline-none text-xs focus:border-primary transition-colors"
+                                                />
+                                                {nameSuggestions.length > 0 && (
+                                                    <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-lg overflow-hidden">
+                                                        {nameSuggestions.map((c: any) => (
+                                                            <div
+                                                                key={c.id}
+                                                                onMouseDown={e => { e.preventDefault(); fillCustomer(c); }}
+                                                                className="px-3 py-2 text-xs cursor-pointer hover:bg-primary/5 flex justify-between items-center border-b border-border/50 last:border-0"
+                                                            >
+                                                                <span className="font-medium text-foreground">{c.name}</span>
+                                                                <span className="text-muted-foreground">{c.phone || '-'}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {/* Field: No. HP */}
+                                            <div className="relative">
+                                                <input
+                                                    type="text"
+                                                    placeholder="No. HP / WA *"
+                                                    value={customerPhone}
+                                                    onChange={e => {
+                                                        setCustomerPhone(e.target.value);
+                                                        // Auto-fill jika HP persis cocok
+                                                        const match = (customers as any[] || []).find((c: any) => c.phone === e.target.value.trim());
+                                                        if (match) { setCustomerName(match.name); setCustomerAddress(match.address || ''); }
+                                                    }}
+                                                    onFocus={() => setCustomerSuggestField('phone')}
+                                                    onBlur={() => setTimeout(() => setCustomerSuggestField(null), 150)}
+                                                    className="w-full px-2.5 py-1.5 bg-background border border-border rounded-lg outline-none text-xs focus:border-primary transition-colors"
+                                                />
+                                                {phoneSuggestions.length > 0 && (
+                                                    <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-background border border-border rounded-lg shadow-lg overflow-hidden">
+                                                        {phoneSuggestions.map((c: any) => (
+                                                            <div
+                                                                key={c.id}
+                                                                onMouseDown={e => { e.preventDefault(); fillCustomer(c); }}
+                                                                className="px-3 py-2 text-xs cursor-pointer hover:bg-primary/5 flex justify-between items-center border-b border-border/50 last:border-0"
+                                                            >
+                                                                <span className="font-medium text-foreground">{c.name}</span>
+                                                                <span className="text-muted-foreground">{c.phone || '-'}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <input type="text" placeholder="Alamat (opsional)" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)}
                                             className="w-full px-2.5 py-1.5 bg-background border border-border rounded-lg outline-none text-xs focus:border-primary transition-colors" />
-                                        {customerName && !customers?.some((c: any) => c.name.toLowerCase() === customerName.toLowerCase()) && (
-                                            <button type="button" disabled={createCustomerMutation.isPending}
-                                                onClick={() => createCustomerMutation.mutate({ name: customerName, phone: customerPhone, address: customerAddress })}
-                                                className="absolute right-0 -bottom-4 text-[10px] text-primary hover:underline">
-                                                {createCustomerMutation.isPending ? 'Menyimpan...' : 'Simpan +'}
-                                            </button>
-                                        )}
                                     </div>
-                                    <input type="text" placeholder="No. HP / WA *" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)}
-                                        className="w-full px-2.5 py-1.5 bg-background border border-border rounded-lg outline-none text-xs focus:border-primary transition-colors" />
-                                </div>
-                                <input type="text" placeholder="Alamat (opsional)" value={customerAddress} onChange={e => setCustomerAddress(e.target.value)}
-                                    className="w-full px-2.5 py-1.5 bg-background border border-border rounded-lg outline-none text-xs focus:border-primary transition-colors mt-2" />
-                            </div>
+                                );
+                            })()}
 
                             {/* ── Info Order ── */}
                             <div className="px-4 pt-3 pb-3 border-b border-border">

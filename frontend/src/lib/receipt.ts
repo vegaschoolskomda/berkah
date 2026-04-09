@@ -311,7 +311,9 @@ export const mapTransactionToReceipt = (trx: any, settings: any): ReceiptSnapsho
       };
     }) || [],
     subtotal: Number(trx.totalAmount),
+    discount: Number(trx.discount) > 0 ? Number(trx.discount) : undefined,
     taxAmount: Number(trx.tax),
+    shippingCost: Number(trx.shippingCost) > 0 ? Number(trx.shippingCost) : undefined,
     grandTotal: Number(trx.grandTotal),
     paymentMethod: trx.paymentMethod,
     customerName: trx.customerName || undefined,
