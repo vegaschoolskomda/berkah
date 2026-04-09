@@ -191,7 +191,7 @@ Klik "Kirim Laporan Shift ke WA"
 
 ### Harian
 - **Dashboard** (`/`) — total penjualan, jumlah transaksi, produk terjual, saldo rekening
-- **Laporan Penjualan** (`/reports/sales`) — detail semua transaksi, bisa filter per tanggal
+- **Laporan Penjualan** (`/reports/sales`) — Ringkasan metrik, **Trend Produk** (perbandingan tren vs periode sebelumnya), Histori Log dengan search pelanggan
 
 ### Mingguan / Bulanan
 - **Cashflow** (`/cashflow`) — chart tren pemasukan vs pengeluaran 6 bulan, breakdown per kategori

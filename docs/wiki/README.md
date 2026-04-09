@@ -23,7 +23,7 @@ Yang membedakan PosPro dari kasir biasa adalah **ekosistemnya yang lengkap**: bu
 | 2 | [Kasir / POS](#-3-kasir--point-of-sale-pos) | Cara melayani pelanggan dan mencatat transaksi |
 | 3 | [Manajemen Produk & Stok](#-4-manajemen-produk--stok) | Cara kelola produk, varian, foto, stok, pembelian bahan baku, riwayat stok |
 | 4 | [DP / Piutang](#-5-daftar-dp--piutang) | Melacak pelanggan yang belum lunas |
-| 5 | [Laporan Penjualan](#-6-laporan-penjualan) | Riwayat semua transaksi dengan filter tanggal |
+| 5 | [📊 Laporan Penjualan](laporan-penjualan.md) | Ringkasan metrik, Trend Produk, Histori Log transaksi |
 | 6 | [Laporan Tutup Shift](#-7-laporan-tutup-shift-) | Rekonsiliasi kas dan rekening bank akhir shift |
 | 7 | [Laporan Laba Kotor](#-laporan-laba-kotor) | Profit & margin per produk berdasarkan HPP |
 | 8 | [Data Pelanggan](#-8-data-pelanggan) | Database & riwayat belanja pelanggan |
@@ -114,11 +114,19 @@ Formula grand total: **Subtotal − Diskon + Pajak + Ongkos Kirim**
 - **Transfer Bank**: pilih rekening tujuan transfer yang diinginkan pelanggan
 - **QRIS**: tampilkan QR code ke pelanggan untuk dipindai
 
-**Langkah 5 — Selesaikan Transaksi**
+**Langkah 5 — Isi Data Pelanggan (Opsional)**
+
+Di bagian bawah modal checkout, tersedia kolom **Nama Pelanggan** dan **No. HP**:
+- Saat mengetik nama atau HP, sistem menampilkan **dropdown saran** dari database pelanggan
+- Jika HP sudah pernah terdaftar, semua kolom terisi **otomatis** (nama + alamat)
+- Badge indikator menampilkan **"✓ Pelanggan lama"** (hijau) atau **"+ Pelanggan baru"** (biru)
+- Pelanggan baru dengan nama + HP akan **otomatis tersimpan** ke database saat transaksi selesai — tidak perlu input manual terpisah
+
+**Langkah 6 — Selesaikan Transaksi**
 - Klik **Bayar Lunas** untuk pembayaran penuh
 - Klik **Bayar DP** jika pelanggan hanya membayar sebagian (uang muka) — transaksi akan masuk ke daftar Piutang
 
-**Langkah 6 — Struk**
+**Langkah 7 — Struk**
 - Setelah transaksi selesai, struk muncul otomatis
 - Klik **Cetak** untuk mencetak ke printer thermal — baris **Diskon** dan **Ongkos Kirim** muncul di struk jika nilainya > 0
 - Klik **Kirim WA** untuk mengirim ringkasan tagihan ke WhatsApp pelanggan
@@ -307,13 +315,19 @@ Saat pelanggan datang untuk melunasi:
 
 ## 📊 6. Laporan Penjualan
 
-Ringkasan lengkap semua transaksi yang pernah terjadi, bisa difilter berdasarkan rentang tanggal.
+> Panduan lengkap tersedia di halaman standalone: **[📊 Laporan Penjualan](laporan-penjualan.md)**
 
-**Yang tersedia:**
-- Filter tanggal (pilih dari–sampai)
-- Detail setiap transaksi: waktu, kasir, item terjual, metode bayar, total
-- Tombol **Cetak Ulang Struk** untuk transaksi lama
-- **Export ke Excel** untuk laporan eksternal atau pembukuan manual
+Pusat analisis transaksi toko dengan filter periode fleksibel dan **3 tab** terintegrasi:
+
+| Tab | Konten |
+|---|---|
+| **Ringkasan** | 3 kartu metrik (Total Pendapatan, Volume Transaksi, Basket Size), Top 5 Produk Terlaris, Distribusi Metode Pembayaran |
+| **Trend Produk** ⭐ | Ranking produk dengan badge tren ↑↓ vs periode sebelumnya, toggle Qty vs Revenue, bar visual perbandingan |
+| **Histori Log** ⭐ | Tabel semua transaksi, pencarian by nama pelanggan / nomor invoice, expand detail item per baris, modal detail lengkap |
+
+**Filter Periode:** Hari Ini / Kemarin / Minggu Ini / Bulan Ini / Bulan Lalu / Tahun Ini / Semua / Kustom — berlaku untuk semua tab sekaligus.
+
+**Export:** Excel (termasuk kolom Pelanggan dan Ongkos Kirim) dan PDF ringkasan siap cetak.
 
 ---
 
