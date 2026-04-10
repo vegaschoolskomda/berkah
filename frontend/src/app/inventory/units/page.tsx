@@ -79,7 +79,7 @@ export default function UnitsPage() {
                 </button>
             </form>
 
-            <div className="glass rounded-xl shadow-sm border border-border overflow-hidden">
+            <div className="glass rounded-xl shadow-sm border border-border overflow-x-auto">
                 <table className="min-w-full divide-y divide-border">
                     <thead className="bg-muted/50">
                         <tr>
@@ -133,10 +133,10 @@ export default function UnitsPage() {
                                                 </>
                                             ) : (
                                                 <>
-                                                    <button onClick={() => startEdit(unit)} className="p-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors opacity-0 group-hover:opacity-100" title="Edit">
+                                                    <button onClick={() => startEdit(unit)} className="p-1.5 rounded-md bg-primary/10 text-primary hover:bg-primary/20 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100" title="Edit">
                                                         <Pencil className="w-4 h-4" />
                                                     </button>
-                                                    <button onClick={() => setDeletingId(unit.id)} className="p-1.5 rounded-md bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors opacity-0 group-hover:opacity-100" title="Hapus">
+                                                    <button onClick={() => setDeletingId(unit.id)} className="p-1.5 rounded-md bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors opacity-100 sm:opacity-0 sm:group-hover:opacity-100" title="Hapus">
                                                         <Trash2 className="w-4 h-4" />
                                                     </button>
                                                 </>

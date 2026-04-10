@@ -229,7 +229,8 @@ export default function PurchaseModal({ onClose }: Props) {
                                     <ShoppingCart className="h-3.5 w-3.5 text-muted-foreground" />
                                     <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Keranjang ({cart.length} item)</span>
                                 </div>
-                                <div className="border border-border rounded-xl overflow-hidden">
+                                <div className="border border-border rounded-xl overflow-x-auto">
+                                    <div className="min-w-[420px]">
                                     {/* Header */}
                                     <div className="grid grid-cols-[1fr_100px_120px_32px] gap-2 px-3 py-2 bg-muted/50 text-[10px] font-medium text-muted-foreground uppercase tracking-wide">
                                         <span>Produk</span>
@@ -278,6 +279,7 @@ export default function PurchaseModal({ onClose }: Props) {
                                             <span className="text-sm font-semibold text-foreground">Rp {totalNilai.toLocaleString('id-ID')}</span>
                                         </div>
                                     )}
+                                    </div>
                                 </div>
                             </div>
                         )}

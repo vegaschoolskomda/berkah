@@ -57,6 +57,12 @@ export default function InventoryPage() {
     // Kebab dropdown
     const [openDropdownId, setOpenDropdownId] = useState<number | null>(null);
 
+    // Mobile action menu (⋮ more)
+    const [showMobileActions, setShowMobileActions] = useState(false);
+
+    // Filter panel toggle (collapsible)
+    const [showFilters, setShowFilters] = useState(false);
+
     // Purchase modal
     const [showPurchaseModal, setShowPurchaseModal] = useState(false);
     const [wasteForm, setWasteForm] = useState({ quantity: '', panjang: '', lebar: '', wasteType: 'Gagal Cetak', notes: '', operatorName: '' });
@@ -82,6 +88,17 @@ export default function InventoryPage() {
         return () => document.removeEventListener('mousedown', close);
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [openDropdownId]);
+
+    useEffect(() => {
+        if (!showMobileActions) return;
+        const close = (e: MouseEvent) => {
+            if (!(e.target as HTMLElement).closest('[data-mobile-menu]')) {
+                setShowMobileActions(false);
+            }
+        };
+        document.addEventListener('mousedown', close);
+        return () => document.removeEventListener('mousedown', close);
+    }, [showMobileActions]);
 
     const [shareToastId, setShareToastId] = useState<number | null>(null);
     const handleShare = (productId: number) => {
@@ -279,6 +296,7 @@ export default function InventoryPage() {
 
     const hasActiveFilters = filterCategory || filterSkuVariant || filterMinPrice || filterMaxPrice || filterMinStock || filterType;
     const isFilterActive = !!(searchText || hasActiveFilters);
+    const activeFilterCount = [filterSkuVariant, filterMinPrice, filterMaxPrice, filterMinStock].filter(Boolean).length;
 
     const toggleSelect = (id: number) =>
         setSelectedIds(prev => {
@@ -317,40 +335,68 @@ export default function InventoryPage() {
         <div>
             {/* ── Sticky top bar ── */}
             <div className="sticky top-0 z-20 bg-background border-b border-border px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 lg:pt-8 pb-3">
-            <div className="sm:flex sm:items-center sm:justify-between">
-                <div>
-                    <h1 className="text-2xl font-bold text-foreground">Manajemen Stok & Produk</h1>
-                    <p className="mt-1 text-sm text-muted-foreground">Kelola inventori, tambah produk, dan multi-varian.</p>
+            {/* Title + Action buttons */}
+            <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                    <h1 className="text-xl sm:text-2xl font-bold text-foreground truncate">Manajemen Stok & Produk</h1>
+                    <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground hidden sm:block">Kelola inventori, tambah produk, dan multi-varian.</p>
                 </div>
-                <div className="mt-4 sm:mt-0 flex gap-2 flex-wrap">
+                {/* Mobile: compact Tambah + ⋮ more menu */}
+                <div className="flex items-center gap-1.5 sm:hidden shrink-0">
+                    <Link href="/inventory/products/new" className="flex items-center gap-1.5 bg-primary text-primary-foreground px-3 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-sm text-sm">
+                        <Plus className="h-4 w-4" /> Tambah
+                    </Link>
+                    <div className="relative" data-mobile-menu>
+                        <button
+                            onClick={() => setShowMobileActions(v => !v)}
+                            className="p-2 rounded-lg border border-border bg-muted/50 text-muted-foreground hover:bg-muted transition-colors"
+                        >
+                            <MoreVertical className="h-5 w-5" />
+                        </button>
+                        {showMobileActions && (
+                            <div className="absolute right-0 top-full mt-1 w-56 bg-card border border-border rounded-xl shadow-xl z-40 py-1.5 overflow-hidden">
+                                <button onClick={() => { setShowPurchaseModal(true); setShowMobileActions(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 transition-colors">
+                                    <ShoppingCart className="h-4 w-4 shrink-0" /> Pembelian Stok
+                                </button>
+                                <button onClick={() => { setWasteVariant(null); setShowWasteModal(true); setShowMobileActions(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors">
+                                    <Trash2 className="h-4 w-4 shrink-0" /> Catat Susut
+                                </button>
+                                <div className="h-px bg-border/60 my-1" />
+                                <button onClick={() => { downloadBulkTemplate(); setShowMobileActions(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm hover:bg-muted transition-colors">
+                                    <Download className="h-4 w-4 shrink-0" /> Download Template
+                                </button>
+                                <button onClick={() => { setShowBulkModal(true); setShowMobileActions(false); }} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm hover:bg-muted transition-colors">
+                                    <Upload className="h-4 w-4 shrink-0" /> Import Bulk
+                                </button>
+                                <div className="h-px bg-border/60 my-1" />
+                                <Link href="/inventory/categories" onClick={() => setShowMobileActions(false)} className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm hover:bg-muted transition-colors">
+                                    Kategori
+                                </Link>
+                                <Link href="/inventory/units" onClick={() => setShowMobileActions(false)} className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm hover:bg-muted transition-colors">
+                                    Unit
+                                </Link>
+                            </div>
+                        )}
+                    </div>
+                </div>
+                {/* Desktop: full button row */}
+                <div className="hidden sm:flex gap-2 flex-wrap shrink-0">
                     <Link href="/inventory/categories" className="flex items-center gap-2 bg-muted text-foreground px-4 py-2 rounded-lg font-medium hover:bg-muted/80 transition-colors border border-border text-sm">
                         Kategori
                     </Link>
                     <Link href="/inventory/units" className="flex items-center gap-2 bg-muted text-foreground px-4 py-2 rounded-lg font-medium hover:bg-muted/80 transition-colors border border-border text-sm">
                         Unit
                     </Link>
-                    <button
-                        onClick={() => downloadBulkTemplate()}
-                        className="flex items-center gap-2 bg-muted text-foreground px-4 py-2 rounded-lg font-medium hover:bg-muted/80 transition-colors border border-border text-sm"
-                    >
+                    <button onClick={() => downloadBulkTemplate()} className="flex items-center gap-2 bg-muted text-foreground px-4 py-2 rounded-lg font-medium hover:bg-muted/80 transition-colors border border-border text-sm">
                         <Download className="h-4 w-4" /> Template
                     </button>
-                    <button
-                        onClick={() => setShowBulkModal(true)}
-                        className="flex items-center gap-2 bg-muted text-foreground px-4 py-2 rounded-lg font-medium hover:bg-muted/80 transition-colors border border-border text-sm"
-                    >
+                    <button onClick={() => setShowBulkModal(true)} className="flex items-center gap-2 bg-muted text-foreground px-4 py-2 rounded-lg font-medium hover:bg-muted/80 transition-colors border border-border text-sm">
                         <Upload className="h-4 w-4" /> Import Bulk
                     </button>
-                    <button
-                        onClick={() => setShowPurchaseModal(true)}
-                        className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-700 transition-colors shadow-sm text-sm"
-                    >
+                    <button onClick={() => setShowPurchaseModal(true)} className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-emerald-700 transition-colors shadow-sm text-sm">
                         <ShoppingCart className="h-4 w-4" /> Pembelian
                     </button>
-                    <button
-                        onClick={() => { setWasteVariant(null); setShowWasteModal(true); }}
-                        className="flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-amber-600 transition-colors shadow-sm text-sm"
-                    >
+                    <button onClick={() => { setWasteVariant(null); setShowWasteModal(true); }} className="flex items-center gap-2 bg-amber-500 text-white px-4 py-2 rounded-lg font-medium hover:bg-amber-600 transition-colors shadow-sm text-sm">
                         <Trash2 className="h-4 w-4" /> Catat Susut
                     </button>
                     <Link href="/inventory/products/new" className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:bg-primary/90 transition-colors shadow-sm text-sm">
@@ -445,82 +491,91 @@ export default function InventoryPage() {
                 )}
             </div>
 
-            {/* Search & Filter Bar */}
-            <div className="glass rounded-xl border border-border shadow-sm p-4 space-y-3 mt-3">
-                    <div className="flex flex-col sm:flex-row gap-3">
-                        <div className="relative flex-1 min-w-0">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <input
-                                type="text"
-                                value={searchText}
-                                onChange={e => setSearchText(e.target.value)}
-                                placeholder="Cari nama produk, SKU, atau nama varian..."
-                                className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm text-foreground placeholder:text-muted-foreground"
-                            />
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
-                            <span className="text-xs text-muted-foreground font-medium hidden sm:block">Filter:</span>
-                        </div>
+            {/* Search + Filter toggle */}
+            <div className="mt-3 space-y-2">
+                <div className="flex gap-2">
+                    <div className="relative flex-1 min-w-0">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <input
+                            type="text"
+                            value={searchText}
+                            onChange={e => setSearchText(e.target.value)}
+                            placeholder="Cari produk, SKU, varian..."
+                            className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-sm text-foreground placeholder:text-muted-foreground"
+                        />
                     </div>
-                    <div className="flex flex-wrap gap-2 items-center">
-                        {/* SKU/Varian filter */}
-                        <div className="relative">
+                    <button
+                        onClick={() => setShowFilters(v => !v)}
+                        className={`flex items-center gap-1.5 px-3 py-2 rounded-lg border text-sm font-medium transition-colors shrink-0 ${
+                            showFilters || hasActiveFilters
+                                ? 'border-primary text-primary bg-primary/5'
+                                : 'border-border text-muted-foreground hover:bg-muted'
+                        }`}
+                    >
+                        <Filter className="h-4 w-4" />
+                        <span className="hidden sm:inline">Filter</span>
+                        {activeFilterCount > 0 && (
+                            <span className="flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold leading-none">
+                                {activeFilterCount}
+                            </span>
+                        )}
+                    </button>
+                </div>
+
+                {/* Collapsible filter panel */}
+                {showFilters && (
+                    <div className="glass rounded-xl border border-border shadow-sm p-3">
+                        <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center">
                             <input
                                 type="text"
                                 value={filterSkuVariant}
                                 onChange={e => setFilterSkuVariant(e.target.value)}
                                 placeholder="SKU / Varian"
-                                className="px-3 py-1.5 bg-background border border-border rounded-lg text-xs outline-none focus:border-primary w-36"
+                                className="px-3 py-1.5 bg-background border border-border rounded-lg text-xs outline-none focus:border-primary w-full sm:w-36"
                             />
-                        </div>
-
-                        {/* Price range */}
-                        <div className="flex items-center gap-1">
-                            <input
-                                type="number"
-                                value={filterMinPrice}
-                                onChange={e => setFilterMinPrice(e.target.value)}
-                                placeholder="Harga min"
-                                className="px-3 py-1.5 bg-background border border-border rounded-lg text-xs outline-none focus:border-primary w-28"
-                            />
-                            <span className="text-xs text-muted-foreground">–</span>
-                            <input
-                                type="number"
-                                value={filterMaxPrice}
-                                onChange={e => setFilterMaxPrice(e.target.value)}
-                                placeholder="Harga max"
-                                className="px-3 py-1.5 bg-background border border-border rounded-lg text-xs outline-none focus:border-primary w-28"
-                            />
-                        </div>
-
-                        {/* Stock min filter */}
-                        <div className="relative">
+                            <div className="flex items-center gap-1">
+                                <input
+                                    type="number"
+                                    value={filterMinPrice}
+                                    onChange={e => setFilterMinPrice(e.target.value)}
+                                    placeholder="Harga min"
+                                    className="px-3 py-1.5 bg-background border border-border rounded-lg text-xs outline-none focus:border-primary flex-1 sm:flex-none sm:w-28 min-w-0"
+                                />
+                                <span className="text-xs text-muted-foreground shrink-0">–</span>
+                                <input
+                                    type="number"
+                                    value={filterMaxPrice}
+                                    onChange={e => setFilterMaxPrice(e.target.value)}
+                                    placeholder="Harga max"
+                                    className="px-3 py-1.5 bg-background border border-border rounded-lg text-xs outline-none focus:border-primary flex-1 sm:flex-none sm:w-28 min-w-0"
+                                />
+                            </div>
                             <input
                                 type="number"
                                 value={filterMinStock}
                                 onChange={e => setFilterMinStock(e.target.value)}
                                 placeholder="Stok min"
-                                className="px-3 py-1.5 bg-background border border-border rounded-lg text-xs outline-none focus:border-primary w-24"
+                                className="px-3 py-1.5 bg-background border border-border rounded-lg text-xs outline-none focus:border-primary w-full sm:w-24"
                             />
+                            {hasActiveFilters && (
+                                <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors">
+                                    <X className="h-3 w-3" /> Reset
+                                </button>
+                            )}
                         </div>
-
-                        {hasActiveFilters && (
-                            <button onClick={clearFilters} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground border border-border px-2.5 py-1.5 rounded-lg hover:bg-muted transition-colors">
-                                <X className="h-3 w-3" /> Reset
-                            </button>
-                        )}
-
-                        <span className="ml-auto text-xs text-muted-foreground">
-                            {groupedProducts.length} produk · {totalRows} varian
-                        </span>
                     </div>
+                )}
+
+                {/* Product count summary */}
+                <div className="flex justify-end">
+                    <span className="text-xs text-muted-foreground">{groupedProducts.length} produk · {totalRows} varian</span>
+                </div>
             </div>
             </div>{/* end sticky wrapper */}
 
             <div className="px-4 sm:px-6 lg:px-8 pt-4 pb-4 sm:pb-6 lg:pb-8">
             {/* Product list card */}
-            <div className="glass rounded-xl shadow-sm border border-border overflow-hidden">
+            <div className="glass rounded-xl shadow-sm border border-border overflow-visible">
                 {/* ── Mobile card list ── */}
                 <div className="md:hidden divide-y divide-border/50">
                     {isLoading ? (
@@ -618,7 +673,7 @@ export default function InventoryPage() {
                                                                     <MoreVertical className="h-3.5 w-3.5" />
                                                                 </button>
                                                                 {openDropdownId === product.id && (
-                                                                    <div className="absolute right-0 top-full mt-1 w-52 bg-card border border-border rounded-xl shadow-xl z-30 py-1.5 overflow-hidden">
+                                                                    <div className="absolute right-0 top-full mt-1 w-52 max-w-[calc(100vw-2rem)] bg-card border border-border rounded-xl shadow-xl z-30 py-1.5 overflow-hidden">
                                                                         <button onClick={() => { setWasteVariant(variant); setShowWasteModal(true); closeDropdown(); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors">
                                                                             <Trash2 className="h-3.5 w-3.5 shrink-0" /> Catat Susut
                                                                         </button>
@@ -806,7 +861,7 @@ export default function InventoryPage() {
                                                                     <MoreVertical className="h-4 w-4" />
                                                                 </button>
                                                                 {openDropdownId === product.id && (
-                                                                    <div className="absolute right-0 top-full mt-1 w-52 bg-card border border-border rounded-xl shadow-xl z-30 py-1.5 overflow-hidden">
+                                                                    <div className="absolute right-0 top-full mt-1 w-52 max-w-[calc(100vw-2rem)] bg-card border border-border rounded-xl shadow-xl z-30 py-1.5 overflow-hidden">
                                                                         <button onClick={() => { setWasteVariant(variant); setShowWasteModal(true); closeDropdown(); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-colors">
                                                                             <Trash2 className="h-3.5 w-3.5 shrink-0" /> Catat Susut
                                                                         </button>
