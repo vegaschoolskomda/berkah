@@ -2,7 +2,7 @@
 layout: home
 
 hero:
-  name: PosPro
+  name: BPS - CV BERKAH PRATAMA SEJAHTERA
   text: Aplikasi Kasir & Manajemen Toko
   tagline: Dokumentasi lengkap untuk kasir, pemilik toko, dan developer — mulai dari setup awal hingga laporan keuangan.
   actions:

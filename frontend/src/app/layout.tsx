@@ -8,8 +8,8 @@ import { SyncManager } from "@/lib/SyncManager";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "PosPro - Comprehensive POS Web Application",
-  description: "All-in-one POS for retail, cafe, and mobile vendors",
+  title: "BPS - CV BERKAH PRATAMA SEJAHTERA | Sistem Kasir & Manajemen Toko",
+  description: "Sistem Point of Sale dan Manajemen Inventori Terpadu untuk Bisnis Retail, Cafe, dan Penjual Mobile",
 };
 
 export default function RootLayout({

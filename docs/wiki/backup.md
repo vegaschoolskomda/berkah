@@ -6,7 +6,7 @@
 
 ## Apa itu Fitur Backup?
 
-Fitur **Backup & Restore** memungkinkan Anda mengekspor seluruh (atau sebagian) data database PosPro ke dalam satu file ZIP. File tersebut bisa disimpan sebagai cadangan dan digunakan untuk memulihkan data jika terjadi masalah.
+Fitur **Backup & Restore** memungkinkan Anda mengekspor seluruh (atau sebagian) data database BPS - CV BERKAH PRATAMA SEJAHTERA ke dalam satu file ZIP. File tersebut bisa disimpan sebagai cadangan dan digunakan untuk memulihkan data jika terjadi masalah.
 
 Manfaat:
 - **Cadangan berkala** sebelum update sistem
@@ -110,4 +110,4 @@ Sebelum melakukan restore, Anda bisa **preview** isi file backup:
 
 ---
 
-*Wiki PosPro — Backup & Restore | Maret 2026*
+*Wiki BPS - CV BERKAH PRATAMA SEJAHTERA — Backup & Restore | Maret 2026*

@@ -13,8 +13,48 @@ const variantInclude = {
 export class ProductsService {
     constructor(private prisma: PrismaService) { }
 
+    private normalizeText(value: any) {
+        return String(value || '').trim();
+    }
+
+    private async resolveCategoryAndUnit(productData: any) {
+        const data = { ...productData };
+
+        const categoryName = this.normalizeText(data.categoryName ?? data.category);
+        const unitName = this.normalizeText(data.unitName ?? data.unit);
+
+        if (categoryName) {
+            const category = await this.prisma.category.upsert({
+                where: { name: categoryName },
+                update: {},
+                create: { name: categoryName },
+            });
+            data.categoryId = category.id;
+        }
+
+        if (unitName) {
+            const unit = await this.prisma.unit.upsert({
+                where: { name: unitName },
+                update: {},
+                create: { name: unitName },
+            });
+            data.unitId = unit.id;
+        }
+
+        delete data.categoryName;
+        delete data.unitName;
+        delete data.category;
+        delete data.unit;
+
+        if (data.categoryId !== undefined) data.categoryId = Number(data.categoryId);
+        if (data.unitId !== undefined) data.unitId = Number(data.unitId);
+
+        return data;
+    }
+
     async create(data: any) {
         const { variants, ingredients, ...productData } = data;
+        const resolvedProductData = await this.resolveCategoryAndUnit(productData);
 
         // Strip priceTiers & variantIngredients from variants before nested create
         const variantsToCreate = (variants || []).map((v: any) => {
@@ -24,7 +64,7 @@ export class ProductsService {
 
         const product = await this.prisma.product.create({
             data: {
-                ...productData,
+                ...resolvedProductData,
                 variants: { create: variantsToCreate },
                 ingredients: { create: ingredients || [] }
             },
@@ -118,9 +158,10 @@ export class ProductsService {
     async update(id: number, data: any) {
         await this.findOne(id);
         const { variants, ingredients, deletedVariantIds, ...productData } = data;
+        const resolvedProductData = await this.resolveCategoryAndUnit(productData);
 
         try {
-            await this.prisma.product.update({ where: { id }, data: productData });
+            await this.prisma.product.update({ where: { id }, data: resolvedProductData });
 
             // Hapus varian yang dihapus dari frontend
             if (deletedVariantIds?.length) {
@@ -189,7 +230,20 @@ export class ProductsService {
         return this.findOne(id);
     }
 
-    async bulkImport(payload: { products: any[] }) {
+    async bulkImport(payload: {
+        products: any[];
+        categoryMode?: 'auto' | 'manual';
+        manualCategoryName?: string;
+        autoCreateCategories?: boolean;
+    }) {
+        const categoryMode = payload.categoryMode === 'manual' ? 'manual' : 'auto';
+        const autoCreateCategories = payload.autoCreateCategories !== false;
+        const manualCategoryName = this.normalizeText(payload.manualCategoryName);
+
+        if (categoryMode === 'manual' && !manualCategoryName) {
+            throw new ConflictException('Nama kategori manual wajib diisi saat mode kategori manual dipilih');
+        }
+
         const results: { created: number; skipped: number; errors: { name: string; message: string }[] } = {
             created: 0,
             skipped: 0,
@@ -198,14 +252,33 @@ export class ProductsService {
 
         for (const item of payload.products) {
             try {
-                const category = await this.prisma.category.upsert({
-                    where: { name: item.category },
-                    create: { name: item.category },
-                    update: {},
-                });
+                const itemCategoryName = this.normalizeText(item.category);
+                const categoryName = categoryMode === 'manual' ? manualCategoryName : itemCategoryName;
+
+                if (!categoryName) {
+                    throw new ConflictException('Kategori wajib diisi pada data import');
+                }
+
+                const category = autoCreateCategories
+                    ? await this.prisma.category.upsert({
+                        where: { name: categoryName },
+                        create: { name: categoryName },
+                        update: {},
+                    })
+                    : await this.prisma.category.findUnique({ where: { name: categoryName } });
+
+                if (!category) {
+                    throw new NotFoundException(`Kategori \"${categoryName}\" tidak ditemukan. Aktifkan auto-create atau isi kategori yang sudah ada.`);
+                }
+
+                const unitName = this.normalizeText(item.unit);
+                if (!unitName) {
+                    throw new ConflictException('Satuan wajib diisi pada data import');
+                }
+
                 const unit = await this.prisma.unit.upsert({
-                    where: { name: item.unit },
-                    create: { name: item.unit },
+                    where: { name: unitName },
+                    create: { name: unitName },
                     update: {},
                 });
 
@@ -283,7 +356,14 @@ export class ProductsService {
 
     async remove(id: number) {
         await this.findOne(id);
-        return this.prisma.product.delete({ where: { id } });
+        try {
+            return await this.prisma.product.delete({ where: { id } });
+        } catch (e: any) {
+            if (e?.code === 'P2003') {
+                throw new ConflictException('Produk tidak bisa dihapus karena masih dipakai transaksi atau data lain');
+            }
+            throw e;
+        }
     }
 
     async bulkRemove(ids: number[]) {

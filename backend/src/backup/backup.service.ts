@@ -125,7 +125,7 @@ export class BackupService {
             meta: {
                 version: '2.1',
                 createdAt: new Date().toISOString(),
-                app: 'PosPro',
+                app: 'BPS - CV BERKAH PRATAMA SEJAHTERA',
                 tables: tablesToExport,
                 groups: selectedGroups === 'all' ? Object.keys(BACKUP_GROUPS) : selectedGroups,
                 rowCounts: counts,
@@ -174,7 +174,7 @@ export class BackupService {
         }
 
         if (!parsed.meta || !parsed.data) {
-            throw new BadRequestException('Format file backup tidak dikenali. Pastikan file berasal dari sistem PosPro.');
+            throw new BadRequestException('Format file backup tidak dikenali. Pastikan file berasal dari sistem BPS - CV BERKAH PRATAMA SEJAHTERA.');
         }
 
         return {
@@ -200,7 +200,7 @@ export class BackupService {
 
         const dataEntry = zip.getEntry('data.json');
         if (!dataEntry) {
-            throw new BadRequestException('File ZIP tidak mengandung data.json. Pastikan file berasal dari sistem PosPro.');
+            throw new BadRequestException('File ZIP tidak mengandung data.json. Pastikan file berasal dari sistem BPS - CV BERKAH PRATAMA SEJAHTERA.');
         }
 
         let parsed: any;

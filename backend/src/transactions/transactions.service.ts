@@ -921,7 +921,7 @@ export class TransactionsService {
         const role = await this.prisma.role.findUnique({ where: { id: roleId } });
         if (!role) return false;
         const n = role.name.toLowerCase();
-        return n === 'admin' || n === 'owner' || n === 'pemilik' || n.includes('manager') || n.includes('manajer') || n.includes('supervisor') || n.includes('kepala');
+        return n === 'admin' || n === 'owner' || n === 'pemilik' || n === 'karyawan' || n.includes('manager') || n.includes('manajer') || n.includes('supervisor') || n.includes('kepala');
     }
 
     private async applyTransactionEdit(tx: any, transactionId: number, editData: TransactionEditData): Promise<void> {

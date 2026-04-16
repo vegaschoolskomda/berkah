@@ -1,8 +1,8 @@
 import { defineConfig } from 'vitepress'
 
 export default defineConfig({
-  title: 'PosPro',
-  description: 'Dokumentasi lengkap PosPro — Aplikasi Kasir & Manajemen Toko Berbasis Web',
+  title: 'BPS - CV BERKAH PRATAMA SEJAHTERA',
+  description: 'Dokumentasi lengkap BPS - CV BERKAH PRATAMA SEJAHTERA — Aplikasi Kasir & Manajemen Toko Berbasis Web',
   srcDir: 'docs/wiki',
   base: '/Pos-Web-Application/',
 
@@ -11,7 +11,7 @@ export default defineConfig({
   ],
 
   themeConfig: {
-    siteTitle: 'PosPro Docs',
+    siteTitle: 'BPS - CV BERKAH PRATAMA SEJAHTERA Docs',
 
     nav: [
       { text: 'Mulai di Sini', link: '/alur-bisnis' },
@@ -85,8 +85,8 @@ export default defineConfig({
     ],
 
     footer: {
-      message: 'PosPro — Aplikasi Kasir & Manajemen Toko Berbasis Web',
-      copyright: 'VOLIKO IMOGIRI © 2026'
+      message: 'BPS - CV BERKAH PRATAMA SEJAHTERA — Aplikasi Kasir & Manajemen Toko Berbasis Web',
+      copyright: 'BPS - CV BERKAH PRATAMA SEJAHTERA © 2026'
     },
 
     editLink: {

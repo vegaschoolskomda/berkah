@@ -1,4 +1,4 @@
-# 📋 DEVELOPMENT NOTES — PosPro Web Application
+# 📋 DEVELOPMENT NOTES — BPS - CV BERKAH PRATAMA SEJAHTERA Web Application
 
 > **Tujuan dokumen ini**: Referensi lengkap untuk agent baru / sesi baru agar dapat melanjutkan pengembangan tanpa kehilangan konteks.
 >
@@ -8,7 +8,7 @@
 
 ## 🏗️ RINGKASAN APLIKASI
 
-**PosPro** adalah aplikasi Point of Sale (POS) berbasis web yang dirancang untuk digunakan di berbagai jenis usaha — toko klontong, percetakan digital (digital printing), café, dan sejenisnya.
+**BPS - CV BERKAH PRATAMA SEJAHTERA** adalah aplikasi Point of Sale (POS) berbasis web yang dirancang untuk digunakan di berbagai jenis usaha — toko klontong, percetakan digital (digital printing), café, dan sejenisnya.
 
 Fitur utama yang sudah ada:
 - Manajemen produk & stok dengan varian, gambar, dan ingredient

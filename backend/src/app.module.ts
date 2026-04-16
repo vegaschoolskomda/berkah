@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -30,14 +31,23 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { WebhookModule } from './webhook/webhook.module';
 import { CashflowRequestsModule } from './cashflow-requests/cashflow-requests.module';
 import { StockPurchasesModule } from './stock-purchases/stock-purchases.module';
+import { DocumentsModule } from './documents/documents.module';
+import { EmployeeMonitoringModule } from './employee-monitoring/employee-monitoring.module';
+import { EmployeeActivityNotificationInterceptor } from './common/interceptors/employee-activity-notification.interceptor';
 
 @Module({
   imports: [
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'public'), // Serve local uploads
     }),
-    PrismaModule, UsersModule, AuthModule, CategoriesModule, UnitsModule, ProductsModule, BatchesModule, StockMovementsModule, TransactionsModule, CashflowModule, InvoiceModule, BranchesModule, SettingsModule, BankAccountsModule, CustomersModule, HppModule, ReportsModule, WhatsappModule, CompetitorsModule, StockOpnameModule, ProductionModule, SuppliersModule, BackupModule, NotificationsModule, WebhookModule, CashflowRequestsModule, StockPurchasesModule],
+    PrismaModule, UsersModule, AuthModule, CategoriesModule, UnitsModule, ProductsModule, BatchesModule, StockMovementsModule, TransactionsModule, CashflowModule, InvoiceModule, BranchesModule, SettingsModule, BankAccountsModule, CustomersModule, HppModule, ReportsModule, WhatsappModule, CompetitorsModule, StockOpnameModule, ProductionModule, SuppliersModule, BackupModule, NotificationsModule, WebhookModule, CashflowRequestsModule, StockPurchasesModule, DocumentsModule, EmployeeMonitoringModule],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: EmployeeActivityNotificationInterceptor,
+    },
+  ],
 })
 export class AppModule { }

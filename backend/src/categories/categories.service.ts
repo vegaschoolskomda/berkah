@@ -6,9 +6,12 @@ export class CategoriesService {
   constructor(private prisma: PrismaService) {}
 
   async create(data: { name: string }) {
-    const existing = await this.prisma.category.findUnique({ where: { name: data.name } });
+    const name = String(data?.name || '').trim();
+    if (!name) throw new ConflictException('Nama kategori wajib diisi');
+
+    const existing = await this.prisma.category.findUnique({ where: { name } });
     if (existing) throw new ConflictException('Category with this name already exists');
-    return this.prisma.category.create({ data });
+    return this.prisma.category.create({ data: { name } });
   }
 
   async findAll() {
@@ -23,11 +26,28 @@ export class CategoriesService {
 
   async update(id: number, data: { name: string }) {
     await this.findOne(id);
-    return this.prisma.category.update({ where: { id }, data });
+    const name = String(data?.name || '').trim();
+    if (!name) throw new ConflictException('Nama kategori wajib diisi');
+
+    try {
+      return await this.prisma.category.update({ where: { id }, data: { name } });
+    } catch (e: any) {
+      if (e?.code === 'P2002') {
+        throw new ConflictException('Category with this name already exists');
+      }
+      throw e;
+    }
   }
 
   async remove(id: number) {
     await this.findOne(id);
-    return this.prisma.category.delete({ where: { id } });
+    try {
+      return await this.prisma.category.delete({ where: { id } });
+    } catch (e: any) {
+      if (e?.code === 'P2003') {
+        throw new ConflictException('Kategori tidak bisa dihapus karena masih dipakai produk');
+      }
+      throw e;
+    }
   }
 }

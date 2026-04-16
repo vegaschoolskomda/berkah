@@ -97,7 +97,7 @@ export function Header() {
         }
     };
 
-    const storeName = settings?.storeName || 'PosPro';
+    const storeName = settings?.storeName || 'BPS - CV BERKAH PRATAMA SEJAHTERA';
     const visibleNotifs = notifications.slice(0, 12);
 
     const handleBellClick = () => {

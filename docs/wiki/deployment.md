@@ -1,6 +1,6 @@
-# 🚀 Panduan Deployment PosPro di Home Server (Cloudflare Tunnel)
+# 🚀 Panduan Deployment BPS - CV BERKAH PRATAMA SEJAHTERA di Home Server (Cloudflare Tunnel)
 
-Panduan ini akan membantu Anda meng-_install_ dan memublikasikan aplikasi **PosPro** di Home Server Anda (misal: Ubuntu Linux) menggunakan **MySQL**, **PM2** (sebagai _process manager_), dan **Cloudflare Zero Trust Tunnel** agar bisa diakses publik menggunakan nama domain/subdomain tanpa perlu membuka _port_ di router (Port Forwarding).
+Panduan ini akan membantu Anda meng-_install_ dan memublikasikan aplikasi **BPS - CV BERKAH PRATAMA SEJAHTERA** di Home Server Anda (misal: Ubuntu Linux) menggunakan **MySQL**, **PM2** (sebagai _process manager_), dan **Cloudflare Zero Trust Tunnel** agar bisa diakses publik menggunakan nama domain/subdomain tanpa perlu membuka _port_ di router (Port Forwarding).
 
 ---
 
@@ -172,7 +172,7 @@ Di halaman _Public Hostnames_, tambahkan rute agar sub-domain Anda nyambung ke p
 
 ## 🎉 Langkah 6: Selesai!
 
-Sekarang Anda bisa mengakses aplikasi PosPro via internet melalui:
+Sekarang Anda bisa mengakses aplikasi BPS - CV BERKAH PRATAMA SEJAHTERA via internet melalui:
 - Aplikasi Web: **https://pos.domainanda.com**
 
 Semua komunikasi via domain Cloudflare tersebut sudah **Otomatis HTTPS (SSL/TLS terenkripsi)**.

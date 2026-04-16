@@ -1,5 +1,10 @@
+"use client";
+
 import { Store, CreditCard, Users, Settings, MessageCircle, Building2, Paintbrush, HardDrive, Bell } from 'lucide-react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useMemo } from 'react';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 
 const NAV_LINKS = [
     { href: '/settings/general',       icon: Store,          label: 'Profil Toko' },
@@ -13,6 +18,22 @@ const NAV_LINKS = [
 ];
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname();
+    const router = useRouter();
+    const { isManager, isLoading } = useCurrentUser();
+
+    const navLinks = useMemo(() => {
+        if (isManager) return NAV_LINKS;
+        return [{ href: '/settings/users', icon: Users, label: 'Profil User' }];
+    }, [isManager]);
+
+    useEffect(() => {
+        if (isLoading) return;
+        if (!isManager && pathname !== '/settings/users') {
+            router.replace('/settings/users');
+        }
+    }, [isLoading, isManager, pathname, router]);
+
     return (
         <div className="flex flex-col md:flex-row md:h-[calc(100vh-8rem)] gap-4 md:gap-6">
             {/* Settings Nav — horizontal tabs on mobile, vertical sidebar on desktop */}
@@ -26,7 +47,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
                 </div>
                 {/* Nav links — icon-only on mobile, icon+text on desktop */}
                 <nav className="flex md:flex-col p-2 gap-1 justify-around md:justify-start md:overflow-y-auto md:flex-1">
-                    {NAV_LINKS.map(({ href, icon: Icon, label }) => (
+                    {navLinks.map(({ href, icon: Icon, label }) => (
                         <Link
                             key={href}
                             href={href}

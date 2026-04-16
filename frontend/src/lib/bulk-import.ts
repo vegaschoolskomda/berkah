@@ -182,7 +182,18 @@ export async function parseBulkExcel(file: File): Promise<{
     products: BulkProductInput[];
     errors: string[];
 }> {
+    return parseBulkExcelWithOptions(file, { requireCategory: true });
+}
+
+export async function parseBulkExcelWithOptions(
+    file: File,
+    options?: { requireCategory?: boolean },
+): Promise<{
+    products: BulkProductInput[];
+    errors: string[];
+}> {
     const errors: string[] = [];
+    const requireCategory = options?.requireCategory !== false;
 
     const buffer = await file.arrayBuffer();
     const wb = XLSX.read(buffer, { type: 'array' });
@@ -277,7 +288,7 @@ export async function parseBulkExcel(file: File): Promise<{
 
         // Validate required fields
         if (!productName) { errors.push(`Baris ${i + 3}: nama_produk kosong, dilewati.`); continue; }
-        if (!category) { errors.push(`Baris ${i + 3} (${productName}): kategori kosong, dilewati.`); continue; }
+        if (!category && requireCategory) { errors.push(`Baris ${i + 3} (${productName}): kategori kosong, dilewati.`); continue; }
         if (!unit) { errors.push(`Baris ${i + 3} (${productName}): satuan kosong, dilewati.`); continue; }
         if (!price) { errors.push(`Baris ${i + 3} (${productName}): harga_jual kosong atau 0, dilewati.`); continue; }
 

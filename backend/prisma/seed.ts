@@ -12,10 +12,70 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import * as bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
 async function main() {
+  // 0. Seed role dan akun login default
+  const ownerRole = await prisma.role.upsert({
+    where: { name: 'owner' },
+    update: {},
+    create: { name: 'owner' },
+  });
+
+  const employeeRole = await prisma.role.upsert({
+    where: { name: 'karyawan' },
+    update: {},
+    create: { name: 'karyawan' },
+  });
+
+  const defaultAccounts = [
+    { username: 'berkah2019pratama', password: 'y74hjbsu3@!$', name: 'Bos Utama', roleId: ownerRole.id },
+    { username: 'bos02', password: 'j2!Vx8#qL1m', name: 'Bos 02', roleId: ownerRole.id },
+    { username: 'bos03', password: 'k7@Zn4$hP6r', name: 'Bos 03', roleId: ownerRole.id },
+    { username: 'karyawan01', password: 'u5#Lp8!nR2m', name: 'Karyawan 01', roleId: employeeRole.id },
+    { username: 'karyawan02', password: 't8K!m2#qP9v', name: 'Karyawan 02', roleId: employeeRole.id },
+    { username: 'karyawan03', password: 'p4@Lm7$zR2x', name: 'Karyawan 03', roleId: employeeRole.id },
+    { username: 'karyawan04', password: 'n9#Qw1!bT6k', name: 'Karyawan 04', roleId: employeeRole.id },
+    { username: 'karyawan05', password: 'm3$Hv8@cJ5r', name: 'Karyawan 05', roleId: employeeRole.id },
+    { username: 'karyawan06', password: 'r7!Xp2#dL4n', name: 'Karyawan 06', roleId: employeeRole.id },
+    { username: 'karyawan07', password: 's1@Nk6$fV9q', name: 'Karyawan 07', roleId: employeeRole.id },
+    { username: 'karyawan08', password: 'v5#Tb3!gM8w', name: 'Karyawan 08', roleId: employeeRole.id },
+    { username: 'karyawan09', password: 'q2$Yh9@jP1t', name: 'Karyawan 09', roleId: employeeRole.id },
+    { username: 'karyawan10', password: 'w8!Cf4#kR7m', name: 'Karyawan 10', roleId: employeeRole.id },
+    { username: 'karyawan11', password: 'x6@Jp1$hN3z', name: 'Karyawan 11', roleId: employeeRole.id },
+    { username: 'karyawan12', password: 'z4#Rm7!lK2v', name: 'Karyawan 12', roleId: employeeRole.id },
+    { username: 'karyawan13', password: 'a9$Ld5@pQ8x', name: 'Karyawan 13', roleId: employeeRole.id },
+    { username: 'karyawan14', password: 'b2!Gk8#rT1n', name: 'Karyawan 14', roleId: employeeRole.id },
+    { username: 'karyawan15', password: 'c7@Vn3$sM6h', name: 'Karyawan 15', roleId: employeeRole.id },
+    { username: 'karyawan16', password: 'd1#Wp9!tJ4q', name: 'Karyawan 16', roleId: employeeRole.id },
+    { username: 'karyawan17', password: 'e5$Xr2@vL8k', name: 'Karyawan 17', roleId: employeeRole.id },
+    { username: 'karyawan18', password: 'f8!Hm6#yP3w', name: 'Karyawan 18', roleId: employeeRole.id },
+    { username: 'karyawan19', password: 'g3@Qt1$zN7r', name: 'Karyawan 19', roleId: employeeRole.id },
+    { username: 'karyawan20', password: 'h6#Yp4!mK2v', name: 'Karyawan 20', roleId: employeeRole.id },
+  ];
+
+  for (const account of defaultAccounts) {
+    const passwordHash = await bcrypt.hash(account.password, 10);
+    await prisma.user.upsert({
+      where: { email: account.username },
+      update: {
+        name: account.name,
+        roleId: account.roleId,
+        passwordHash,
+      },
+      create: {
+        name: account.name,
+        email: account.username,
+        passwordHash,
+        roleId: account.roleId,
+      },
+    });
+  }
+
+  console.log(`✓ Akun default login disiapkan: ${defaultAccounts.length} akun`);
+
   // 1. Upsert Category: "Cetak"
   const category = await prisma.category.upsert({
     where: { name: 'Cetak' },

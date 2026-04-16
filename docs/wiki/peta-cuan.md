@@ -262,4 +262,4 @@ Di **Top Bar** bagian kanan, ada 3 tombol yang berfungsi sebagai filter tampilan
 
 ---
 
-*Dokumentasi PosPro — Peta Cuan Lokasi | Terakhir diperbarui: Maret 2026*
+*Dokumentasi BPS - CV BERKAH PRATAMA SEJAHTERA — Peta Cuan Lokasi | Terakhir diperbarui: Maret 2026*

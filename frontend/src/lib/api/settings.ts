@@ -31,8 +31,10 @@ export const uploadLogoImage = async (file: File) => {
 // Users & Roles
 export const getUsers = async () => (await api.get('/users')).data;
 export const createUser = async (data: any) => (await api.post('/users', data)).data;
-export const updateUser = async (id: number, data: { name?: string, roleId?: number, phone?: string, password?: string }) =>
+export const updateUser = async (id: number, data: { name?: string, email?: string, roleId?: number, phone?: string, password?: string }) =>
     (await api.patch(`/users/${id}`, data)).data;
+export const updateMyProfile = async (data: { name?: string, email?: string, password?: string }) =>
+    (await api.patch('/users/me/profile', data)).data;
 export const deleteUser = async (id: number) => (await api.delete(`/users/${id}`)).data;
 export const getRoles = async () => (await api.get('/users/roles')).data;
 export const createRole = async (data: { name: string }) => (await api.post('/users/roles', data)).data;

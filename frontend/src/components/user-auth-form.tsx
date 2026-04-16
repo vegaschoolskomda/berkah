@@ -16,7 +16,6 @@ interface UserAuthFormProps extends React.HTMLAttributes<HTMLDivElement> {
 export function UserAuthForm({ className, mobileGlass, ...props }: UserAuthFormProps) {
     const router = useRouter()
     const [isLoading, setIsLoading] = React.useState<boolean>(false)
-    const [isRegistering, setIsRegistering] = React.useState<boolean>(false)
     const [errorMsg, setErrorMsg] = React.useState<string | null>(null)
 
     async function onSubmit(event: React.SyntheticEvent) {
@@ -25,43 +24,39 @@ export function UserAuthForm({ className, mobileGlass, ...props }: UserAuthFormP
         setErrorMsg(null)
 
         const target = event.target as typeof event.target & {
-            email: { value: string };
+            username: { value: string };
             password: { value: string };
         };
 
-        const email = target.email.value;
+        const username = target.username.value.trim();
         const password = target.password.value;
 
         const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
-        const endpoint = isRegistering ? `${base}/auth/register` : `${base}/auth/login`;
+        const endpoint = `${base}/auth/login`;
 
         try {
             const res = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password }),
+                body: JSON.stringify({ username, email: username, login: username, password }),
             });
 
             if (!res.ok) {
-                const data = await res.json();
-                throw new Error(data.message || 'Authentication failed');
+                const data = await res.json().catch(() => null);
+                const message = Array.isArray(data?.message)
+                    ? data.message.join(', ')
+                    : data?.message || 'Authentication failed';
+                throw new Error(message);
             }
 
             const data = await res.json();
+            localStorage.setItem('token', data.access_token);
+            // Set cookie for Next.js Middleware. Expires in 1 day to match backend JWT setting.
+            const expires = new Date();
+            expires.setTime(expires.getTime() + (1 * 24 * 60 * 60 * 1000));
+            document.cookie = `token=${data.access_token};expires=${expires.toUTCString()};path=/`;
 
-            if (isRegistering) {
-                // If registered successfully, automatically switch to login mode and prefill
-                setIsRegistering(false);
-                setErrorMsg("Registration successful! Please sign in.");
-            } else {
-                localStorage.setItem('token', data.access_token);
-                // Set cookie for Next.js Middleware. Expires in 1 day to match backend JWT setting.
-                const expires = new Date();
-                expires.setTime(expires.getTime() + (1 * 24 * 60 * 60 * 1000));
-                document.cookie = `token=${data.access_token};expires=${expires.toUTCString()};path=/`;
-
-                router.replace('/');
-            }
+            router.replace('/');
         } catch (error: any) {
             setErrorMsg(error.message);
         } finally {
@@ -74,14 +69,14 @@ export function UserAuthForm({ className, mobileGlass, ...props }: UserAuthFormP
             <form onSubmit={onSubmit}>
                 <div className="grid gap-4">
                     <div className="grid gap-2">
-                        <Label className="sr-only" htmlFor="email">Email</Label>
+                        <Label className="sr-only" htmlFor="username">Username</Label>
                         <Input
-                            id="email"
-                            name="email"
-                            placeholder="name@example.com"
-                            type="email"
+                            id="username"
+                            name="username"
+                            placeholder="Masukkan username atau email"
+                            type="text"
                             autoCapitalize="none"
-                            autoComplete="email"
+                            autoComplete="username"
                             autoCorrect="off"
                             disabled={isLoading}
                             required
@@ -111,37 +106,10 @@ export function UserAuthForm({ className, mobileGlass, ...props }: UserAuthFormP
                         {isLoading && (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                         )}
-                        {isRegistering ? "Daftar" : "Masuk"}
+                        Masuk
                     </Button>
                 </div>
             </form>
-            <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                    <span className={cn("w-full border-t", mobileGlass && "border-white/20 lg:border-border")} />
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                    <span className={cn(
-                        "px-2",
-                        mobileGlass
-                            ? "bg-transparent text-white/50 lg:bg-background lg:text-muted-foreground"
-                            : "bg-background text-muted-foreground"
-                    )}>
-                        Or
-                    </span>
-                </div>
-            </div>
-            <Button
-                variant="outline"
-                type="button"
-                disabled={isLoading}
-                onClick={() => {
-                    setIsRegistering(!isRegistering);
-                    setErrorMsg(null);
-                }}
-                className={mobileGlass ? "bg-transparent border-white/25 text-white hover:bg-white/10 hover:text-white lg:bg-background lg:border-input lg:text-foreground lg:hover:bg-accent lg:hover:text-accent-foreground" : ""}
-            >
-                {isRegistering ? "Kembali ke Login" : "Buat Akun Baru"}
-            </Button>
         </div>
     )
 }

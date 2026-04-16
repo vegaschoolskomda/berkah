@@ -19,7 +19,11 @@ export default function CategoriesPage() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['categories'] });
             setName('');
-        }
+        },
+        onError: (error: any) => {
+            const message = error?.response?.data?.message || error?.message || 'Gagal menambah kategori';
+            alert(Array.isArray(message) ? message.join(', ') : message);
+        },
     });
 
     const updateMutation = useMutation({
@@ -27,7 +31,11 @@ export default function CategoriesPage() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['categories'] });
             setEditingId(null);
-        }
+        },
+        onError: (error: any) => {
+            const message = error?.response?.data?.message || error?.message || 'Gagal mengubah kategori';
+            alert(Array.isArray(message) ? message.join(', ') : message);
+        },
     });
 
     const deleteMutation = useMutation({
@@ -35,7 +43,11 @@ export default function CategoriesPage() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['categories'] });
             setDeletingId(null);
-        }
+        },
+        onError: (error: any) => {
+            const message = error?.response?.data?.message || error?.message || 'Gagal menghapus kategori';
+            alert(Array.isArray(message) ? message.join(', ') : message);
+        },
     });
 
     const handleSubmit = (e: React.FormEvent) => {

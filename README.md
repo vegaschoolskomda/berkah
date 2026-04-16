@@ -1,6 +1,6 @@
-# 🛒 PosPro — Aplikasi Kasir & Manajemen Toko Berbasis Web
+# 🛒 BPS - CV BERKAH PRATAMA SEJAHTERA — Aplikasi Kasir & Manajemen Toko Berbasis Web
 
-[![PosPro Banner](https://img.shields.io/badge/PosPro-Point%20of%20Sale-blue?style=for-the-badge&logo=shopify)](https://github.com/tsunosora/Pos-Web-Application)
+[![BPS Application Banner](https://img.shields.io/badge/BPS-Point%20of%20Sale-blue?style=for-the-badge&logo=shopify)](https://github.com/tsunosora/Pos-Web-Application)
 [![NestJS](https://img.shields.io/badge/Backend-NestJS-red?style=flat-square&logo=nestjs)](https://nestjs.com)
 [![Next.js](https://img.shields.io/badge/Frontend-Next.js-black?style=flat-square&logo=next.js)](https://nextjs.org)
 [![MySQL](https://img.shields.io/badge/Database-MySQL-orange?style=flat-square&logo=mysql)](https://mysql.com)
@@ -12,9 +12,9 @@
 
 ---
 
-## 📖 Apa itu PosPro?
+## 📖 Apa itu BPS - CV BERKAH PRATAMA SEJAHTERA?
 
-**PosPro** adalah aplikasi kasir berbasis web yang dirancang untuk memudahkan operasional bisnis sehari-hari. Berbeda dengan aplikasi kasir tradisional yang hanya mencatat transaksi, PosPro hadir dengan ekosistem lengkap: mulai dari kasir real-time, manajemen stok, laporan keuangan, pelacakan piutang, invoice profesional, penawaran harga B2B, arus kas bisnis, peta lokasi kompetitor, hingga **Bot WhatsApp** yang otomatis melaporkan mutasi keuangan ke grup pemilik toko.
+**BPS - CV BERKAH PRATAMA SEJAHTERA** adalah aplikasi kasir berbasis web yang dirancang untuk memudahkan operasional bisnis sehari-hari. Berbeda dengan aplikasi kasir tradisional yang hanya mencatat transaksi, BPS hadir dengan ekosistem lengkap: mulai dari kasir real-time, manajemen stok, laporan keuangan, pelacakan piutang, invoice profesional, penawaran harga B2B, arus kas bisnis, peta lokasi kompetitor, hingga **Bot WhatsApp** yang otomatis melaporkan mutasi keuangan ke grup pemilik toko.
 
 Cukup buka browser, tap, dan transaksi selesai — tanpa perlu instalasi aplikasi tambahan.
 
@@ -139,7 +139,7 @@ Hitung fisik stok gudang dengan sistem link operator yang aman dan terstruktur.
 - Upload beberapa **foto latar** yang berganti otomatis dengan efek **Ken Burns** (zoom + geser halus)
 - Atur **tagline / slogan** toko yang tampil bergantian di panel login
 - Logo dan nama toko mengikuti pengaturan di **Profil Toko** secara otomatis
-- **Animated logo** Voliko dengan efek stroke draw-in dan letter pop-in
+- **Animated logo** dengan efek stroke draw-in dan letter pop-in
 - Tampilan login **responsif penuh** — di HP menggunakan glass-morphism card di atas background animasi, di desktop split-panel dua kolom
 
 ### 🔐 14. Sistem Autentikasi & Role
@@ -157,7 +157,7 @@ Hitung fisik stok gudang dengan sistem link operator yang aman dan terstruktur.
 ## 🖥️ Peta Halaman Aplikasi
 
 ```
-📱 Halaman-Halaman PosPro
+📱 Halaman-Halaman BPS - CV BERKAH PRATAMA SEJAHTERA
 ├── /                       → Dashboard ringkasan bisnis
 ├── /pos                    → Kasir (tambah item, checkout, cetak struk)
 ├── /pos/close-shift        → Form tutup shift kasir
@@ -330,7 +330,7 @@ npm run dev
 
 ## 🌐 Deploy ke Server (Self-Hosted + Cloudflare Tunnel)
 
-Bagian ini menjelaskan cara deploy PosPro ke homeserver/VPS menggunakan **Cloudflare Tunnel** agar bisa diakses publik dengan domain sendiri tanpa membuka port router.
+Bagian ini menjelaskan cara deploy BPS - CV BERKAH PRATAMA SEJAHTERA ke homeserver/VPS menggunakan **Cloudflare Tunnel** agar bisa diakses publik dengan domain sendiri tanpa membuka port router.
 
 ### Arsitektur Deploy
 

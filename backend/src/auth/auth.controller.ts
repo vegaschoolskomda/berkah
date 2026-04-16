@@ -13,9 +13,16 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('login')
   async login(@Body() signInDto: Record<string, any>) {
-    const user = await this.authService.validateUser(signInDto.email, signInDto.password);
+    const login = String(signInDto.username || signInDto.email || signInDto.login || '').trim();
+    const password = String(signInDto.password || '');
+
+    if (!login || !password) {
+      throw new UnauthorizedException('Username/email dan password wajib diisi');
+    }
+
+    const user = await this.authService.validateUser(login, password);
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Username/email atau password salah');
     }
     return this.authService.login(user);
   }

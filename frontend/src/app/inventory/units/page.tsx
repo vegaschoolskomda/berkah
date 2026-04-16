@@ -19,7 +19,11 @@ export default function UnitsPage() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['units'] });
             setName('');
-        }
+        },
+        onError: (error: any) => {
+            const message = error?.response?.data?.message || error?.message || 'Gagal menambah unit';
+            alert(Array.isArray(message) ? message.join(', ') : message);
+        },
     });
 
     const updateMutation = useMutation({
@@ -27,7 +31,11 @@ export default function UnitsPage() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['units'] });
             setEditingId(null);
-        }
+        },
+        onError: (error: any) => {
+            const message = error?.response?.data?.message || error?.message || 'Gagal mengubah unit';
+            alert(Array.isArray(message) ? message.join(', ') : message);
+        },
     });
 
     const deleteMutation = useMutation({
@@ -35,7 +43,11 @@ export default function UnitsPage() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['units'] });
             setDeletingId(null);
-        }
+        },
+        onError: (error: any) => {
+            const message = error?.response?.data?.message || error?.message || 'Gagal menghapus unit';
+            alert(Array.isArray(message) ? message.join(', ') : message);
+        },
     });
 
     const handleSubmit = (e: React.FormEvent) => {

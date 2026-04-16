@@ -10,7 +10,7 @@ export class SettingsService {
         if (!settings) {
             settings = await this.prisma.storeSettings.create({
                 data: {
-                    storeName: 'PosPro',
+                    storeName: 'BPS - CV BERKAH PRATAMA SEJAHTERA',
                     storeAddress: '',
                 },
             });

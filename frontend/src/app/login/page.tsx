@@ -60,7 +60,7 @@ export default function AuthenticationPage() {
                                 Masuk ke Akun
                             </h1>
                             <p className="text-sm text-white/60 lg:text-muted-foreground">
-                                Masukkan username dan password Anda
+                                Masukkan username/email dan password Anda
                             </p>
                         </div>
 

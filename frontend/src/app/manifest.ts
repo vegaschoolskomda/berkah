@@ -4,7 +4,7 @@ import { getPublicSettings } from '@/lib/api/settings';
 export const revalidate = 3600;
 
 export default async function manifest(): Promise<MetadataRoute.Manifest> {
-  let storeName = 'PosPro';
+  let storeName = 'BPS - CV BERKAH PRATAMA SEJAHTERA';
   try {
     const settings = await getPublicSettings();
     if (settings?.storeName) storeName = settings.storeName;

@@ -6,13 +6,17 @@ export class BranchesService implements OnModuleInit {
     constructor(private prisma: PrismaService) { }
 
     async onModuleInit() {
-        const count = await this.prisma.branch.count();
-        if (count === 0) {
-            await this.prisma.branch.createMany({
-                data: [
-                    { name: 'Cabang Utama', address: 'Masukkan alamat cabang Anda', latitude: -6.2146, longitude: 106.8173, omset: 0, margin: 0 },
-                ]
-            });
+        try {
+            const count = await this.prisma.branch.count();
+            if (count === 0) {
+                await this.prisma.branch.createMany({
+                    data: [
+                        { name: 'Cabang Utama', address: 'Masukkan alamat cabang Anda', latitude: -6.2146, longitude: 106.8173, omset: 0, margin: 0 },
+                    ]
+                });
+            }
+        } catch {
+            // Fresh database without migrations should not block app startup.
         }
     }
 

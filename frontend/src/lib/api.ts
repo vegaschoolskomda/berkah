@@ -13,3 +13,5 @@ export * from './api/opname';
 export * from './api/production';
 export * from './api/suppliers';
 export * from './api/backup';
+export * from './api/documents';
+export * from './api/employee-monitoring';

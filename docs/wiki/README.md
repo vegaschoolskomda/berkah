@@ -1,14 +1,14 @@
-# 📖 Wiki — PosPro: Aplikasi Kasir & Manajemen Bisnis Berbasis Web
+# 📖 Wiki — BPS - CV BERKAH PRATAMA SEJAHTERA: Aplikasi Kasir & Manajemen Bisnis Berbasis Web
 
-> Selamat datang di dokumentasi lengkap **PosPro** — panduan ini ditujukan untuk siapa saja yang ingin memahami, menggunakan, atau mengembangkan aplikasi ini, mulai dari kasir toko hingga pemilik bisnis.
+> Selamat datang di dokumentasi lengkap **BPS - CV BERKAH PRATAMA SEJAHTERA** — panduan ini ditujukan untuk siapa saja yang ingin memahami, menggunakan, atau mengembangkan aplikasi ini, mulai dari kasir toko hingga pemilik bisnis.
 
 ---
 
-## Apa itu PosPro?
+## Apa itu BPS - CV BERKAH PRATAMA SEJAHTERA?
 
-**PosPro** adalah aplikasi kasir berbasis web yang dirancang untuk bisnis modern — percetakan digital, toko kelontong, kafe, konveksi, atau usaha jasa lainnya. Tidak perlu install aplikasi tambahan, cukup buka browser dan langsung bisa digunakan.
+**BPS - CV BERKAH PRATAMA SEJAHTERA** adalah aplikasi kasir berbasis web yang dirancang untuk bisnis modern — percetakan digital, toko kelontong, kafe, konveksi, atau usaha jasa lainnya. Tidak perlu install aplikasi tambahan, cukup buka browser dan langsung bisa digunakan.
 
-Yang membedakan PosPro dari kasir biasa adalah **ekosistemnya yang lengkap**: bukan hanya mencatat penjualan, tapi juga mengelola stok, membuat penawaran harga profesional ke klien perusahaan, melacak arus kas, memetakan posisi kompetitor, dan mengirim laporan otomatis ke grup WhatsApp pemilik toko.
+Yang membedakan BPS - CV BERKAH PRATAMA SEJAHTERA dari kasir biasa adalah **ekosistemnya yang lengkap**: bukan hanya mencatat penjualan, tapi juga mengelola stok, membuat penawaran harga profesional ke klien perusahaan, melacak arus kas, memetakan posisi kompetitor, dan mengirim laporan otomatis ke grup WhatsApp pemilik toko.
 
 ---
 

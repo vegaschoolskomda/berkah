@@ -318,4 +318,4 @@ Pilih aksi simpan:
 
 ---
 
-*Dokumentasi Kalkulator HPP — PosPro v2.8 | 26 Maret 2026*
+*Dokumentasi Kalkulator HPP — BPS - CV BERKAH PRATAMA SEJAHTERA v2.8 | 26 Maret 2026*

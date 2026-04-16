@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getCategories, getUnits, getProduct, updateProduct, uploadProductImages, uploadVariantImage, getSettings, getProducts, getHppWorksheets, createHppWorksheet, updateHppWorksheet, applyHppToVariant } from '@/lib/api';
+import { getProduct, updateProduct, uploadProductImages, uploadVariantImage, getSettings, getProducts, getHppWorksheets, createHppWorksheet, updateHppWorksheet, applyHppToVariant } from '@/lib/api';
 import { useRouter, useParams } from 'next/navigation';
 import { ArrowLeft, Plus, Trash2, Save, Upload, Image as ImageIcon, FlaskConical, X, Ruler, Package, Link2, RefreshCw, Calculator, Pencil } from 'lucide-react';
 import Link from 'next/link';
@@ -83,8 +83,6 @@ export default function EditProductPage() {
     const productId = Number(params.id);
     const queryClient = useQueryClient();
 
-    const { data: categories } = useQuery({ queryKey: ['categories'], queryFn: getCategories });
-    const { data: units } = useQuery({ queryKey: ['units'], queryFn: getUnits });
     const { data: settings } = useQuery({ queryKey: ['settings'], queryFn: getSettings });
     const { data: products } = useQuery({ queryKey: ['products'], queryFn: getProducts });
     const { data: product, isLoading } = useQuery({
@@ -216,7 +214,7 @@ export default function EditProductPage() {
         }
     };
 
-    const [productForm, setProductForm] = useState({ name: '', description: '', categoryId: '', unitId: '' });
+    const [productForm, setProductForm] = useState({ name: '', description: '', categoryName: '', unitName: '' });
     const [pricingMode, setPricingMode] = useState<'UNIT' | 'AREA_BASED'>('UNIT');
     const [productType, setProductType] = useState<'SELLABLE' | 'RAW_MATERIAL' | 'SERVICE'>('SELLABLE');
     const [pricePerUnit, setPricePerUnit] = useState('');
@@ -245,8 +243,8 @@ export default function EditProductPage() {
             setProductForm({
                 name: product.name || '',
                 description: product.description || '',
-                categoryId: String(product.categoryId || ''),
-                unitId: String(product.unitId || ''),
+                categoryName: product.category?.name || '',
+                unitName: product.unit?.name || '',
             });
             setPricingMode(product.pricingMode || 'UNIT');
             setProductType(product.productType || 'SELLABLE');
@@ -315,8 +313,8 @@ export default function EditProductPage() {
             const payload: any = {
                 name: productForm.name,
                 description: productForm.description,
-                categoryId: Number(productForm.categoryId),
-                unitId: Number(productForm.unitId),
+                categoryName: productForm.categoryName,
+                unitName: productForm.unitName,
                 pricingMode,
                 productType,
                 requiresProduction,
@@ -380,7 +378,11 @@ export default function EditProductPage() {
             queryClient.removeQueries({ queryKey: ['product', productId] });
             setDeletedVariantIds([]);
             router.push('/inventory');
-        }
+        },
+        onError: (error: any) => {
+            const message = error?.response?.data?.message || error?.message || 'Gagal mengubah produk';
+            alert(Array.isArray(message) ? message.join(', ') : message);
+        },
     });
 
     const handleProductImageChange = (slotIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -515,17 +517,25 @@ export default function EditProductPage() {
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Kategori *</label>
-                                <select required value={productForm.categoryId} onChange={e => setProductForm({ ...productForm, categoryId: e.target.value })} className="w-full px-3 py-2.5 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm appearance-none">
-                                    <option value="" disabled>Pilih</option>
-                                    {categories?.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
+                                <input
+                                    required
+                                    type="text"
+                                    value={productForm.categoryName}
+                                    onChange={e => setProductForm({ ...productForm, categoryName: e.target.value })}
+                                    placeholder="Contoh: Makanan, Minuman, Cetak"
+                                    className="w-full px-3 py-2.5 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm"
+                                />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-sm font-medium">Unit *</label>
-                                <select required value={productForm.unitId} onChange={e => setProductForm({ ...productForm, unitId: e.target.value })} className="w-full px-3 py-2.5 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm appearance-none">
-                                    <option value="" disabled>Pilih</option>
-                                    {units?.map((u: any) => <option key={u.id} value={u.id}>{u.name}</option>)}
-                                </select>
+                                <input
+                                    required
+                                    type="text"
+                                    value={productForm.unitName}
+                                    onChange={e => setProductForm({ ...productForm, unitName: e.target.value })}
+                                    placeholder="Contoh: Pcs, Lembar, Box"
+                                    className="w-full px-3 py-2.5 bg-background border border-border rounded-lg focus:ring-2 focus:ring-primary outline-none text-sm"
+                                />
                             </div>
                         </div>
 

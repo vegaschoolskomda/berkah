@@ -8,24 +8,22 @@ import {
     ShoppingCart,
     BarChart3,
     Package,
-    Wallet,
+    FolderOpen,
     FileText,
-    MapPin,
-    Calculator,
     Settings,
     Banknote,
     Users,
     X,
     Store,
     ClipboardList,
-    Printer,
     Truck,
     ClipboardEdit,
     TrendingDown,
+    Activity,
 } from "lucide-react";
 import { useUIStore } from "@/store/ui-store";
 import { useQuery } from "@tanstack/react-query";
-import { getSettings } from "@/lib/api";
+import { getDocumentCategories, getSettings } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getTransactionEditRequests } from "@/lib/api/transactions";
 
@@ -33,18 +31,18 @@ const navigation = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
     { name: "Kasir POS", href: "/pos", icon: ShoppingCart },
     { name: "Rekap Penjualan", href: "/reports/sales", icon: BarChart3 },
-    { name: "Laporan Laba Kotor", href: "/reports/profit", icon: BarChart3 },
-    { name: "Daftar DP / Piutang", href: "/transactions/dp", icon: Wallet },
     { name: "Manajemen Stok", href: "/inventory", icon: Package },
+    { name: "Olah - Data", href: "/olah-data", icon: FolderOpen },
     { name: "Laporan Stok", href: "/reports/stock", icon: TrendingDown },
     { name: "Data Supplier", href: "/inventory/suppliers", icon: Truck },
     { name: "Stok Opname", href: "/inventory/opname", icon: ClipboardList },
-    { name: "Antrian Produksi", href: "/produksi", icon: Printer },
     { name: "Cashflow Bisnis", href: "/cashflow", icon: Banknote },
     { name: "Data Pelanggan", href: "/customers", icon: Users },
     { name: "Invoice & Penawaran", href: "/invoices", icon: FileText },
-    { name: "Peta Cuan Lokasi", href: "/maps", icon: MapPin },
-    { name: "Kalkulator HPP", href: "/reports/hpp", icon: Calculator },
+];
+
+const managerNavigation = [
+    { name: "Pantau Kinerja", href: "/monitoring", icon: Activity },
 ];
 
 export function Sidebar() {
@@ -66,9 +64,14 @@ export function Sidebar() {
         staleTime: 60_000,
         refetchInterval: 60_000,
     });
+    const { data: documentCategories = [] } = useQuery({
+        queryKey: ['document-categories'],
+        queryFn: getDocumentCategories,
+        staleTime: 60_000,
+    });
     const pendingEditCount = pendingEditRequests?.length ?? 0;
 
-    const storeName = settings?.storeName || 'PosPro';
+    const storeName = settings?.storeName || 'BPS - CV BERKAH PRATAMA SEJAHTERA';
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
     const logoUrl = settings?.logoImageUrl ? `${API_URL}${settings.logoImageUrl}` : null;
 
@@ -122,28 +125,85 @@ export function Sidebar() {
                                 (item.href !== '/' && pathname.startsWith(item.href + "/")) ||
                                 (item.href !== '/' && pathname === item.href);
                             return (
-                                <Link
-                                    key={item.name}
-                                    href={item.href}
-                                    onClick={() => {
-                                        if (window.innerWidth < 1024) closeSidebar();
-                                    }}
-                                    className={cn(
-                                        isActive
-                                            ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                                            : "hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
-                                        "group flex items-center rounded-md px-3 py-2.5 text-sm font-medium transition-all"
-                                    )}
-                                >
-                                    <item.icon
+                                <div key={item.name}>
+                                    <Link
+                                        href={item.href}
+                                        onClick={() => {
+                                            if (window.innerWidth < 1024) closeSidebar();
+                                        }}
                                         className={cn(
-                                            isActive ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground",
-                                            "mr-3 h-5 w-5 flex-shrink-0 transition-colors"
+                                            isActive
+                                                ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                                                : "hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                                            "group flex items-center rounded-md px-3 py-2.5 text-sm font-medium transition-all"
                                         )}
-                                        aria-hidden="true"
-                                    />
-                                    {item.name}
-                                </Link>
+                                    >
+                                        <item.icon
+                                            className={cn(
+                                                isActive ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground",
+                                                "mr-3 h-5 w-5 flex-shrink-0 transition-colors"
+                                            )}
+                                            aria-hidden="true"
+                                        />
+                                        {item.name}
+                                    </Link>
+
+                                    {item.href === '/olah-data' && documentCategories.length > 0 && (
+                                        <div className="mt-1 ml-9 space-y-0.5">
+                                            <Link
+                                                href="/olah-data"
+                                                onClick={() => {
+                                                    if (window.innerWidth < 1024) closeSidebar();
+                                                }}
+                                                className="block rounded-md px-2 py-1.5 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-accent-foreground transition-colors"
+                                            >
+                                                Semua Kategori
+                                            </Link>
+                                            {documentCategories.map((cat: any) => (
+                                                <Link
+                                                    key={cat.id}
+                                                    href={`/olah-data?category=${cat.id}`}
+                                                    onClick={() => {
+                                                        if (window.innerWidth < 1024) closeSidebar();
+                                                    }}
+                                                    className="block rounded-md px-2 py-1.5 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent/40 hover:text-sidebar-accent-foreground transition-colors truncate"
+                                                    title={cat.name}
+                                                >
+                                                    {cat.name}
+                                                </Link>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+
+                        {isManager && managerNavigation.map((item) => {
+                            const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href + '/'));
+                            return (
+                                <div key={item.name}>
+                                    <Link
+                                        href={item.href}
+                                        onClick={() => {
+                                            if (window.innerWidth < 1024) closeSidebar();
+                                        }}
+                                        className={cn(
+                                            isActive
+                                                ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                                                : "hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                                            "group flex items-center rounded-md px-3 py-2.5 text-sm font-medium transition-all"
+                                        )}
+                                    >
+                                        <item.icon
+                                            className={cn(
+                                                isActive ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground",
+                                                "mr-3 h-5 w-5 flex-shrink-0 transition-colors"
+                                            )}
+                                            aria-hidden="true"
+                                        />
+                                        {item.name}
+                                    </Link>
+                                </div>
                             );
                         })}
 

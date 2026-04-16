@@ -2,12 +2,21 @@
 
 import { useState, useEffect } from "react";
 import { getUsers, getRoles, updateUser, deleteUser, createRole, updateRole, deleteRole, createUser } from "@/lib/api";
-import { Loader2, ShieldAlert, UserCog, Plus, Trash2, Edit, X, Shield, Key } from "lucide-react";
+import { Loader2, UserCog, Plus, Trash2, Edit, X, Shield, Key } from "lucide-react";
+import { useCurrentUser } from "@/hooks/useCurrentUser";
+import { updateMyProfile } from "@/lib/api/settings";
 
 export default function UserManagementSettings() {
+    const { currentUser, isManager, isLoading: isLoadingCurrentUser } = useCurrentUser();
     const [users, setUsers] = useState<any[]>([]);
     const [roles, setRoles] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [profileForm, setProfileForm] = useState({
+        name: '',
+        username: '',
+        password: '',
+        confirmPassword: '',
+    });
 
     // Modals state
     const [roleModal, setRoleModal] = useState<{ isOpen: boolean, mode: 'add' | 'edit', id?: number, name: string }>({ isOpen: false, mode: 'add', name: '' });
@@ -29,8 +38,45 @@ export default function UserManagementSettings() {
     };
 
     useEffect(() => {
-        loadData();
-    }, []);
+        if (isLoadingCurrentUser) return;
+        if (isManager) {
+            loadData();
+            return;
+        }
+        setIsLoading(false);
+    }, [isLoadingCurrentUser, isManager]);
+
+    useEffect(() => {
+        if (!currentUser) return;
+        setProfileForm({
+            name: currentUser.name || '',
+            username: currentUser.email || '',
+            password: '',
+            confirmPassword: '',
+        });
+    }, [currentUser]);
+
+    const handleSaveOwnProfile = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!currentUser) return;
+        if (!profileForm.name.trim()) return alert('Nama asli wajib diisi');
+        if (!profileForm.username.trim()) return alert('Username login wajib diisi');
+        if (profileForm.password && profileForm.password.length < 6) return alert('Password minimal 6 karakter');
+        if (profileForm.password !== profileForm.confirmPassword) return alert('Konfirmasi password tidak cocok');
+
+        try {
+            await updateMyProfile({
+                name: profileForm.name.trim(),
+                email: profileForm.username.trim(),
+                ...(profileForm.password ? { password: profileForm.password } : {}),
+            });
+            setProfileForm(prev => ({ ...prev, password: '', confirmPassword: '' }));
+            alert('Profil berhasil diperbarui. Silakan login ulang jika username/password diubah.');
+        } catch (error: any) {
+            const message = error?.response?.data?.message || error?.message || 'Gagal menyimpan profil';
+            alert(Array.isArray(message) ? message.join(', ') : message);
+        }
+    };
 
     // --- Inline Inline User Handlers (Quick Edit) ---
     const handleRoleChangeInline = async (userId: number, newRoleId: string) => {
@@ -116,7 +162,77 @@ export default function UserManagementSettings() {
     };
 
 
-    if (isLoading) return <div className="p-8 flex justify-center text-muted-foreground"><Loader2 className="animate-spin" /></div>;
+    if (isLoadingCurrentUser || isLoading) return <div className="p-8 flex justify-center text-muted-foreground"><Loader2 className="animate-spin" /></div>;
+
+    if (!isManager) {
+        return (
+            <div className="p-6 max-w-3xl mx-auto space-y-6">
+                <div>
+                    <h1 className="text-2xl font-bold flex items-center gap-2">
+                        <UserCog className="h-6 w-6 text-primary" />
+                        Profil User
+                    </h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        Untuk akun karyawan, halaman pengaturan hanya menampilkan profil sendiri.
+                    </p>
+                </div>
+
+                <form onSubmit={handleSaveOwnProfile} className="glass bg-card/50 rounded-xl border border-border p-5 space-y-4">
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-medium text-muted-foreground">Nama Asli</label>
+                        <input
+                            type="text"
+                            value={profileForm.name}
+                            onChange={e => setProfileForm(prev => ({ ...prev, name: e.target.value }))}
+                            className="w-full px-3 py-2 bg-background border border-border rounded-lg outline-none text-sm focus:border-primary"
+                            required
+                        />
+                    </div>
+
+                    <div className="space-y-1.5">
+                        <label className="text-sm font-medium text-muted-foreground">Username Login</label>
+                        <input
+                            type="text"
+                            value={profileForm.username}
+                            onChange={e => setProfileForm(prev => ({ ...prev, username: e.target.value }))}
+                            className="w-full px-3 py-2 bg-background border border-border rounded-lg outline-none text-sm focus:border-primary"
+                            required
+                        />
+                        <p className="text-xs text-muted-foreground">Username ini dipakai saat login.</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-dashed border-border pt-4">
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-muted-foreground">Password Baru</label>
+                            <input
+                                type="password"
+                                value={profileForm.password}
+                                onChange={e => setProfileForm(prev => ({ ...prev, password: e.target.value }))}
+                                placeholder="Kosongkan jika tidak diganti"
+                                className="w-full px-3 py-2 bg-background border border-border rounded-lg outline-none text-sm focus:border-primary"
+                            />
+                        </div>
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-medium text-muted-foreground">Konfirmasi Password</label>
+                            <input
+                                type="password"
+                                value={profileForm.confirmPassword}
+                                onChange={e => setProfileForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                                placeholder="Ulangi password baru"
+                                className="w-full px-3 py-2 bg-background border border-border rounded-lg outline-none text-sm focus:border-primary"
+                            />
+                        </div>
+                    </div>
+
+                    <div className="pt-2 flex justify-end">
+                        <button type="submit" className="px-6 py-2 text-sm font-bold bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 shadow-sm">
+                            Simpan Profil
+                        </button>
+                    </div>
+                </form>
+            </div>
+        );
+    }
 
     return (
         <div className="p-6 max-w-7xl mx-auto space-y-8">
@@ -288,8 +404,8 @@ export default function UserManagementSettings() {
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="text-sm font-medium text-muted-foreground">Email (Untuk Login)</label>
-                                <input type="email" required={userModal.mode === 'add'} disabled={userModal.mode === 'edit'} value={userModal.email} onChange={e => setUserModal({ ...userModal, email: e.target.value })}
+                                <label className="text-sm font-medium text-muted-foreground">Username (Untuk Login)</label>
+                                <input type="text" required={userModal.mode === 'add'} disabled={userModal.mode === 'edit'} value={userModal.email} onChange={e => setUserModal({ ...userModal, email: e.target.value })}
                                     className="w-full px-3 py-2 bg-background disabled:bg-muted/50 border border-border rounded-lg outline-none text-sm focus:border-primary" />
                             </div>
 

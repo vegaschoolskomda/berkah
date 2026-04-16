@@ -723,7 +723,7 @@ export default function SalesReportPage() {
                                         className="flex items-center gap-2 px-4 py-2 bg-amber-500/10 border border-amber-500/20 text-amber-700 rounded-lg text-sm font-medium hover:bg-amber-500/20 transition-colors outline-none"
                                     >
                                         <PenSquare className="w-4 h-4" />
-                                        {isManager ? 'Edit' : 'Ajukan Edit'}
+                                        Edit
                                     </button>
                                 )}
                             </div>
@@ -739,7 +739,7 @@ export default function SalesReportPage() {
             {showEditModal && selectedTransaction && (
                 <EditTransactionModal
                     transaction={selectedTransaction}
-                    isManager={isManager}
+                    isManager={true}
                     onClose={() => setShowEditModal(false)}
                     onSuccess={(updated) => {
                         setShowEditModal(false);

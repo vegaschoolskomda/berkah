@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { getMe } from '@/lib/api';
 
 export function useCurrentUser() {
-    const { data } = useQuery({
+    const { data, isLoading } = useQuery({
         queryKey: ['current-user'],
         queryFn: getMe,
         staleTime: 5 * 60 * 1000,
@@ -24,5 +24,5 @@ export function useCurrentUser() {
         );
     }, [data]);
 
-    return { currentUser: data, isManager };
+    return { currentUser: data, isManager, isLoading };
 }

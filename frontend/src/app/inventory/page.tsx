@@ -3,8 +3,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getProducts, logStockMovement, deleteProduct, bulkDeleteProducts, bulkImportProducts } from '@/lib/api';
-import { downloadBulkTemplate, parseBulkExcel, BulkProductInput } from '@/lib/bulk-import';
-import { Search, Plus, Package, RefreshCw, X, Image as ImageIcon, Pencil, Trash2, ChevronDown, Filter, Download, Upload, Calculator, Share2, History, MoreVertical, ShoppingCart } from 'lucide-react';
+import { downloadBulkTemplate, parseBulkExcelWithOptions, BulkProductInput } from '@/lib/bulk-import';
+import { Search, Plus, Package, RefreshCw, X, Image as ImageIcon, Pencil, Trash2, ChevronDown, Filter, Download, Upload, Share2, History, MoreVertical, ShoppingCart } from 'lucide-react';
 import StockHistoryModal from './StockHistoryModal';
 import PurchaseModal from './PurchaseModal';
 import Link from 'next/link';
@@ -131,21 +131,46 @@ export default function InventoryPage() {
     const [bulkParseErrors, setBulkParseErrors] = useState<string[]>([]);
     const [bulkImporting, setBulkImporting] = useState(false);
     const [bulkResult, setBulkResult] = useState<{ created: number; errors: { name: string; message: string }[] } | null>(null);
+    const [bulkCategoryMode, setBulkCategoryMode] = useState<'auto' | 'manual'>('auto');
+    const [bulkManualCategoryName, setBulkManualCategoryName] = useState('');
 
     const handleBulkFileChange = async (file: File | null) => {
         if (!file) return;
         setBulkFile(file);
-        const { products, errors } = await parseBulkExcel(file);
+        const { products, errors } = await parseBulkExcelWithOptions(file, {
+            requireCategory: bulkCategoryMode !== 'manual',
+        });
         setBulkPreview(products);
         setBulkParseErrors(errors);
         setBulkStep('preview');
     };
 
+    useEffect(() => {
+        const reparse = async () => {
+            if (!bulkFile) return;
+            const { products, errors } = await parseBulkExcelWithOptions(bulkFile, {
+                requireCategory: bulkCategoryMode !== 'manual',
+            });
+            setBulkPreview(products);
+            setBulkParseErrors(errors);
+        };
+        reparse();
+    }, [bulkCategoryMode, bulkFile]);
+
     const handleBulkImport = async () => {
         if (!bulkPreview) return;
+        if (bulkCategoryMode === 'manual' && !bulkManualCategoryName.trim()) {
+            alert('Isi nama kategori manual dulu sebelum import.');
+            return;
+        }
         setBulkImporting(true);
         try {
-            const result = await bulkImportProducts({ products: bulkPreview });
+            const result = await bulkImportProducts({
+                products: bulkPreview,
+                categoryMode: bulkCategoryMode,
+                manualCategoryName: bulkManualCategoryName.trim() || undefined,
+                autoCreateCategories: true,
+            });
             setBulkResult(result);
             setBulkStep('result');
             queryClient.invalidateQueries({ queryKey: ['products'] });
@@ -164,6 +189,8 @@ export default function InventoryPage() {
         setBulkPreview(null);
         setBulkParseErrors([]);
         setBulkResult(null);
+        setBulkCategoryMode('auto');
+        setBulkManualCategoryName('');
     };
 
     const movementMutation = useMutation({
@@ -180,7 +207,11 @@ export default function InventoryPage() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['products'] });
             setDeletingProductId(null);
-        }
+        },
+        onError: (error: any) => {
+            const message = error?.response?.data?.message || error?.message || 'Gagal menghapus produk';
+            alert(Array.isArray(message) ? message.join(', ') : message);
+        },
     });
 
     const bulkDeleteMutation = useMutation({
@@ -189,7 +220,11 @@ export default function InventoryPage() {
             queryClient.invalidateQueries({ queryKey: ['products'] });
             setSelectedIds(new Set());
             setShowBulkDeleteModal(false);
-        }
+        },
+        onError: (error: any) => {
+            const message = error?.response?.data?.message || error?.message || 'Gagal menghapus produk terpilih';
+            alert(Array.isArray(message) ? message.join(', ') : message);
+        },
     });
 
     const openMovementModal = (variant: any) => {
@@ -682,9 +717,6 @@ export default function InventoryPage() {
                                                                         <button onClick={() => { router.push(`/inventory/products/${product.id}/edit`); closeDropdown(); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm hover:bg-muted transition-colors">
                                                                             <Pencil className="h-3.5 w-3.5 shrink-0" /> Edit Produk
                                                                         </button>
-                                                                        <button onClick={() => { router.push(`/reports/hpp?editProductId=${product.id}`); closeDropdown(); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors">
-                                                                            <Calculator className="h-3.5 w-3.5 shrink-0" /> Kalkulator HPP
-                                                                        </button>
                                                                         <button onClick={() => { handleShare(product.id); closeDropdown(); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors">
                                                                             <Share2 className="h-3.5 w-3.5 shrink-0" /> {shareToastId === product.id ? 'Link Disalin!' : 'Salin Link'}
                                                                         </button>
@@ -869,9 +901,6 @@ export default function InventoryPage() {
                                                                         <div className="h-px bg-border/60 my-1" />
                                                                         <button onClick={() => { router.push(`/inventory/products/${product.id}/edit`); closeDropdown(); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm hover:bg-muted transition-colors">
                                                                             <Pencil className="h-3.5 w-3.5 shrink-0" /> Edit Produk
-                                                                        </button>
-                                                                        <button onClick={() => { router.push(`/reports/hpp?editProductId=${product.id}`); closeDropdown(); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30 transition-colors">
-                                                                            <Calculator className="h-3.5 w-3.5 shrink-0" /> Kalkulator HPP
                                                                         </button>
                                                                         <button onClick={() => { handleShare(product.id); closeDropdown(); }} className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors">
                                                                             <Share2 className="h-3.5 w-3.5 shrink-0" /> {shareToastId === product.id ? 'Link Disalin!' : 'Salin Link Produk'}
@@ -1174,6 +1203,30 @@ export default function InventoryPage() {
                                     <p className="text-sm text-muted-foreground">
                                         Upload file Excel (.xlsx) yang sudah diisi sesuai template. Klik tombol <strong>Template</strong> di halaman inventory untuk mengunduh template terlebih dahulu.
                                     </p>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-muted-foreground">Mode kategori saat import</label>
+                                            <select
+                                                value={bulkCategoryMode}
+                                                onChange={e => setBulkCategoryMode(e.target.value as 'auto' | 'manual')}
+                                                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm"
+                                            >
+                                                <option value="auto">Otomatis dari kolom kategori (buat baru jika belum ada)</option>
+                                                <option value="manual">Manual: pakai 1 kategori untuk semua produk</option>
+                                            </select>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-muted-foreground">Kategori manual (opsional)</label>
+                                            <input
+                                                type="text"
+                                                value={bulkManualCategoryName}
+                                                onChange={e => setBulkManualCategoryName(e.target.value)}
+                                                disabled={bulkCategoryMode !== 'manual'}
+                                                placeholder="Contoh: Cetak Digital"
+                                                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm disabled:opacity-50"
+                                            />
+                                        </div>
+                                    </div>
                                     <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-border rounded-xl cursor-pointer hover:bg-muted/50 transition-colors">
                                         <Upload className="h-8 w-8 text-muted-foreground mb-2" />
                                         <span className="text-sm text-muted-foreground">Klik atau drag & drop file .xlsx di sini</span>
@@ -1220,7 +1273,7 @@ export default function InventoryPage() {
                                                         {bulkPreview.map((p, i) => (
                                                             <tr key={i} className="hover:bg-muted/30">
                                                                 <td className="px-3 py-2 font-medium">{p.name}</td>
-                                                                <td className="px-3 py-2 text-muted-foreground">{p.category}</td>
+                                                                <td className="px-3 py-2 text-muted-foreground">{bulkCategoryMode === 'manual' ? (bulkManualCategoryName || '(kategori manual belum diisi)') : p.category}</td>
                                                                 <td className="px-3 py-2 text-center">{p.variants.length}</td>
                                                                 <td className="px-3 py-2 text-xs text-muted-foreground">{p.variants.map(v => v.sku).join(', ')}</td>
                                                                 <td className="px-3 py-2 text-center">{p.hppWorksheets.length > 0 ? '✓' : '—'}</td>

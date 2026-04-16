@@ -120,5 +120,10 @@ export const getBatches = async () => (await api.get('/batches')).data;
 export const createBatch = async (data: any) => (await api.post('/batches', data)).data;
 
 // Bulk Import
-export const bulkImportProducts = async (data: { products: any[] }) =>
+export const bulkImportProducts = async (data: {
+    products: any[];
+    categoryMode?: 'auto' | 'manual';
+    manualCategoryName?: string;
+    autoCreateCategories?: boolean;
+}) =>
     (await api.post('/products/bulk-import', data)).data;

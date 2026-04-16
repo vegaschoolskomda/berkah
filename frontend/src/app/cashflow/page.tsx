@@ -70,6 +70,11 @@ const fmtShort = (n: number) => {
     return `Rp ${n}`;
 };
 
+const getApiErrorMessage = (error: any, fallback: string) => {
+    const message = error?.response?.data?.message || error?.message || fallback;
+    return Array.isArray(message) ? message.join(', ') : message;
+};
+
 // --- Edit Modal ---
 function EditModal({ entry, bankAccounts, onClose, onSave, isPending }: {
     entry: CashflowEntry;
@@ -491,6 +496,9 @@ export default function CashflowPage() {
             setPaymentMethod('CASH');
             setBankAccountId('');
         },
+        onError: (error: any) => {
+            alert(getApiErrorMessage(error, 'Gagal menambah entry cashflow'));
+        },
     });
 
     const updateMutation = useMutation({
@@ -499,6 +507,9 @@ export default function CashflowPage() {
             invalidateAll();
             setEditEntry(null);
         },
+        onError: (error: any) => {
+            alert(getApiErrorMessage(error, 'Gagal mengubah entry cashflow'));
+        },
     });
 
     const deleteMutation = useMutation({
@@ -506,6 +517,9 @@ export default function CashflowPage() {
         onSuccess: () => {
             invalidateAll();
             setDeleteId(null);
+        },
+        onError: (error: any) => {
+            alert(getApiErrorMessage(error, 'Gagal menghapus entry cashflow'));
         },
     });
 
@@ -856,41 +870,20 @@ export default function CashflowPage() {
                                             {entry.type === 'INCOME' ? '+' : '-'} {fmt(parseFloat(entry.amount))}
                                         </p>
                                     </div>
-                                    {/* Edit/delete: manager sees all entries, cashier only sees manual entries */}
-                                    {(isManager || entry.userId) && (() => {
-                                        const hasPending = !isManager && myRequests.some(
-                                            r => r.cashflowId === entry.id && r.status === 'PENDING'
-                                        );
-                                        if (hasPending) {
-                                            return (
-                                                <span className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-full border border-amber-200 dark:border-amber-800">
-                                                    <Clock className="h-3 w-3" /> Menunggu
-                                                </span>
-                                            );
-                                        }
-                                        return (
-                                            <div className="flex gap-1">
-                                                <button
-                                                    onClick={() => {
-                                                        if (isManager) { setEditEntry(entry); }
-                                                        else { setRequestEntry(entry); setRequestType('EDIT'); }
-                                                    }}
-                                                    className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
-                                                    title={isManager ? 'Edit' : 'Ajukan perubahan'}>
-                                                    <Pencil className="h-4 w-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => {
-                                                        if (isManager) { setDeleteId(entry.id); }
-                                                        else { setRequestEntry(entry); setRequestType('DELETE'); }
-                                                    }}
-                                                    className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                                                    title={isManager ? 'Hapus' : 'Ajukan hapus'}>
-                                                    <Trash2 className="h-4 w-4" />
-                                                </button>
-                                            </div>
-                                        );
-                                    })()}
+                                    <div className="flex gap-1">
+                                        <button
+                                            onClick={() => setEditEntry(entry)}
+                                            className="p-2 rounded-lg text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                                            title="Edit">
+                                            <Pencil className="h-4 w-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => setDeleteId(entry.id)}
+                                            className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                                            title="Hapus">
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         ))

@@ -6,8 +6,15 @@ import { CashflowType, Prisma } from '@prisma/client';
 export class CashflowService {
     constructor(private prisma: PrismaService) { }
 
-    async create(data: Prisma.CashflowCreateInput) {
-        return this.prisma.cashflow.create({ data });
+    async create(data: any) {
+        const { bankAccountId, amount, ...rest } = data ?? {};
+        return this.prisma.cashflow.create({
+            data: {
+                ...rest,
+                amount: amount !== undefined ? new Prisma.Decimal(String(amount)) : amount,
+                ...(bankAccountId ? { bankAccount: { connect: { id: Number(bankAccountId) } } } : {}),
+            } as any,
+        });
     }
 
     async findAll(startDate?: string, endDate?: string) {
@@ -116,7 +123,18 @@ export class CashflowService {
     }) {
         const entry = await this.prisma.cashflow.findUnique({ where: { id } });
         if (!entry) throw new NotFoundException('Cashflow entry not found');
-        return this.prisma.cashflow.update({ where: { id }, data: data as any });
+
+        const { bankAccountId, amount, ...rest } = data;
+        const updateData: any = {
+            ...rest,
+            ...(amount !== undefined ? { amount: new Prisma.Decimal(String(amount)) } : {}),
+        };
+
+        if (bankAccountId !== undefined) {
+            updateData.bankAccount = bankAccountId ? { connect: { id: Number(bankAccountId) } } : { disconnect: true };
+        }
+
+        return this.prisma.cashflow.update({ where: { id }, data: updateData });
     }
 
     async getPlatformBreakdown(startDate?: string, endDate?: string) {

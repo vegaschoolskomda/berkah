@@ -265,4 +265,4 @@ Ketika klien menyetujui penawaran Anda:
 
 ---
 
-*Dokumentasi PosPro — Invoice & Penawaran Harga | Terakhir diperbarui: Maret 2026*
+*Dokumentasi BPS - CV BERKAH PRATAMA SEJAHTERA — Invoice & Penawaran Harga | Terakhir diperbarui: Maret 2026*
