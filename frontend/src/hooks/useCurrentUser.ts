@@ -24,5 +24,19 @@ export function useCurrentUser() {
         );
     }, [data]);
 
-    return { currentUser: data, isManager, isLoading };
+    const isBoss = useMemo(() => {
+        if (!data?.role) return false;
+        const n = data.role.name.toLowerCase();
+        return (
+            n === 'owner' ||
+            n === 'pemilik' ||
+            n === 'bos' ||
+            n.includes('owner') ||
+            n.includes('pemilik') ||
+            n.includes('boss') ||
+            n.includes('bos')
+        );
+    }, [data]);
+
+    return { currentUser: data, isManager, isBoss, isLoading };
 }

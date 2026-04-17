@@ -121,7 +121,12 @@ export default function OlahDataPage() {
 
     const deleteCategoryMutation = useMutation({
         mutationFn: (id: number) => deleteDocumentCategory(id),
-        onSuccess: () => {
+        onSuccess: (result: any) => {
+            if (result?.requiresApproval) {
+                alert(result.message || 'Permintaan hapus kategori sudah dikirim ke bos.');
+                setDeleteCategoryId(null);
+                return;
+            }
             invalidateAll();
             setDeleteCategoryId(null);
         },
@@ -145,7 +150,12 @@ export default function OlahDataPage() {
 
     const deleteMutation = useMutation({
         mutationFn: (id: number) => deleteDocument(id),
-        onSuccess: () => {
+        onSuccess: (result: any) => {
+            if (result?.requiresApproval) {
+                alert(result.message || 'Permintaan hapus file sudah dikirim ke bos.');
+                setDeleteId(null);
+                return;
+            }
             invalidateAll();
             setDeleteId(null);
         },

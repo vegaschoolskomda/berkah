@@ -23,6 +23,11 @@ export type DocumentFile = {
     uploadedBy: { id: number; name: string | null; email: string };
 };
 
+export type DeleteResponse = {
+    message: string;
+    requiresApproval?: boolean;
+};
+
 export const getDocumentCategories = async () =>
     (await api.get('/documents/categories')).data as DocumentCategory[];
 
@@ -33,7 +38,7 @@ export const updateDocumentCategory = async (id: number, name: string) =>
     (await api.patch(`/documents/categories/${id}`, { name })).data as DocumentCategory;
 
 export const deleteDocumentCategory = async (id: number) =>
-    (await api.delete(`/documents/categories/${id}`)).data as { message: string };
+    (await api.delete(`/documents/categories/${id}`)).data as DeleteResponse;
 
 export const getDocuments = async () =>
     (await api.get('/documents')).data as DocumentFile[];
@@ -49,4 +54,4 @@ export const updateDocument = async (id: number, formData: FormData) =>
     })).data as DocumentFile;
 
 export const deleteDocument = async (id: number) =>
-    (await api.delete(`/documents/${id}`)).data as { message: string };
+    (await api.delete(`/documents/${id}`)).data as DeleteResponse;

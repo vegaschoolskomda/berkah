@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getTransactionEditRequests, reviewTransactionEditRequest, TransactionEditRequest } from '@/lib/api/transactions';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { approveDocumentDeleteRequest, getDocumentDeleteRequests, rejectDocumentDeleteRequest, DocumentDeleteRequest } from '@/lib/api/document-delete-requests';
 import { useCurrentUser } from '@/hooks/useCurrentUser';
-import { Check, X, Clock, CheckCircle, XCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { Check, Clock, Trash2, X, ChevronDown, ChevronUp, CheckCircle, XCircle } from 'lucide-react';
 import dayjs from 'dayjs';
 import 'dayjs/locale/id';
 
@@ -16,54 +16,7 @@ const STATUS_CONFIG = {
     REJECTED: { label: 'Ditolak', color: 'text-red-600', bg: 'bg-red-500/10 border-red-500/20', icon: XCircle },
 };
 
-function EditDiff({ request }: { request: TransactionEditRequest }) {
-    const { editData, transaction } = request;
-    const currentItems: any[] = transaction.items || [];
-
-    return (
-        <div className="mt-3 space-y-1.5">
-            {(editData.items || []).map((editItem: any) => {
-                const current = currentItems.find((i: any) => i.id === editItem.id);
-                if (!current) return null;
-
-                const productName = current.productVariant?.product?.name || `Item #${editItem.id}`;
-                const variantName = current.productVariant?.variantName;
-                const label = variantName ? `${productName} — ${variantName}` : productName;
-
-                const isAreaBased = current.widthCm !== null;
-
-                return (
-                    <div key={editItem.id} className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
-                        <span className="font-medium text-foreground">{label}:</span>
-                        {isAreaBased ? (
-                            <>
-                                <span className="line-through">{Number(current.widthCm).toFixed(2)} × {Number(current.heightCm).toFixed(2)}</span>
-                                <span className="text-foreground font-medium">→</span>
-                                <span className="text-emerald-600 font-medium">{editItem.widthCm} × {editItem.heightCm} {editItem.unitType || 'm'}</span>
-                            </>
-                        ) : (
-                            <>
-                                <span className="line-through">Qty {current.quantity}</span>
-                                <span className="text-foreground font-medium">→</span>
-                                <span className="text-emerald-600 font-medium">Qty {editItem.quantity}</span>
-                            </>
-                        )}
-                    </div>
-                );
-            })}
-            {editData.discount !== undefined && editData.discount !== null && (
-                <div className="text-xs text-muted-foreground flex items-center gap-1.5">
-                    <span className="font-medium text-foreground">Diskon:</span>
-                    <span className="line-through">Rp {Number(request.transaction.grandTotal).toLocaleString('id-ID')}</span>
-                    <span className="text-foreground font-medium">→</span>
-                    <span className="text-emerald-600 font-medium">Rp {Number(editData.discount).toLocaleString('id-ID')}</span>
-                </div>
-            )}
-        </div>
-    );
-}
-
-function RequestCard({ request, onRefresh }: { request: TransactionEditRequest; onRefresh: () => void }) {
+function RequestCard({ request }: { request: DocumentDeleteRequest }) {
     const queryClient = useQueryClient();
     const [expanded, setExpanded] = useState(false);
     const [reviewing, setReviewing] = useState<'approve' | 'reject' | null>(null);
@@ -73,21 +26,29 @@ function RequestCard({ request, onRefresh }: { request: TransactionEditRequest; 
     const StatusIcon = statusCfg.icon;
 
     const reviewMutation = useMutation({
-        mutationFn: (params: { approved: boolean; reviewNote?: string }) =>
-            reviewTransactionEditRequest(request.id, params),
+        mutationFn: (params: { approved: boolean; reviewerNote?: string }) =>
+            params.approved
+                ? approveDocumentDeleteRequest(request.id, { reviewerNote: params.reviewerNote })
+                : rejectDocumentDeleteRequest(request.id, { reviewerNote: params.reviewerNote || '' }),
         onSuccess: () => {
             setReviewing(null);
             setReviewNote('');
-            queryClient.invalidateQueries({ queryKey: ['transaction-edit-requests'] });
+            queryClient.invalidateQueries({ queryKey: ['document-delete-requests'] });
+        },
+        onError: (error: any) => {
+            const message = error?.response?.data?.message || error?.message || 'Gagal memproses permintaan';
+            alert(Array.isArray(message) ? message.join(', ') : message);
         },
     });
+
+    const targetLabel = request.targetType === 'FILE' ? 'File' : 'Kategori';
 
     const handleReview = (approved: boolean) => {
         if (!approved && !reviewNote.trim()) {
             alert('Harap isi alasan penolakan');
             return;
         }
-        reviewMutation.mutate({ approved, reviewNote: reviewNote.trim() || undefined });
+        reviewMutation.mutate({ approved, reviewerNote: reviewNote.trim() || undefined });
     };
 
     return (
@@ -96,50 +57,60 @@ function RequestCard({ request, onRefresh }: { request: TransactionEditRequest; 
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-semibold text-foreground">{request.transaction.invoiceNumber}</span>
+                            <span className="text-sm font-semibold text-foreground inline-flex items-center gap-1.5">
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                                {request.targetName}
+                            </span>
                             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border ${statusCfg.bg} ${statusCfg.color}`}>
                                 <StatusIcon className="w-3 h-3" />
                                 {statusCfg.label}
                             </span>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                            Diajukan oleh <span className="font-medium text-foreground">{request.requestedBy.name || request.requestedBy.email}</span>
+                            {targetLabel} • diajukan oleh <span className="font-medium text-foreground">{request.requester.name || request.requester.email}</span>
                             {' · '}
                             {dayjs(request.createdAt).format('D MMM YYYY HH:mm')}
                         </p>
                     </div>
-                    <button
-                        onClick={() => setExpanded((v) => !v)}
-                        className="p-1.5 rounded-lg hover:bg-muted transition-colors shrink-0"
-                    >
+                    <button onClick={() => setExpanded((v) => !v)} className="p-1.5 rounded-lg hover:bg-muted transition-colors shrink-0">
                         {expanded ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
                     </button>
                 </div>
 
-                {/* Reason */}
-                <div className="mt-2 p-2.5 bg-muted/50 rounded-lg">
-                    <p className="text-xs text-muted-foreground"><span className="font-medium">Alasan:</span> {request.reason}</p>
+                <div className="mt-2 p-2.5 bg-muted/50 rounded-lg space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                        <span className="font-medium">Alasan requester:</span> {request.requesterNote || '-'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                        <span className="font-medium">Target:</span> {request.targetType} #{request.documentId ?? request.categoryId ?? '-'}
+                    </p>
                 </div>
 
-                {/* Proposed changes diff */}
-                {expanded && <EditDiff request={request} />}
+                {expanded && (
+                    <div className="mt-3 space-y-1.5 text-xs text-muted-foreground">
+                        <p>
+                            <span className="font-medium text-foreground">Target:</span> {request.targetType === 'FILE' ? 'File dokumen' : 'Kategori dokumen'}
+                        </p>
+                        <p>
+                            <span className="font-medium text-foreground">Dibuat:</span> {dayjs(request.createdAt).format('D MMM YYYY HH:mm')}
+                        </p>
+                        {request.reviewer && (
+                            <p>
+                                <span className="font-medium text-foreground">Reviewer terakhir:</span> {request.reviewer.name || request.reviewer.email}
+                            </p>
+                        )}
+                    </div>
+                )}
             </div>
 
-            {/* Review note if processed */}
-            {request.status !== 'PENDING' && request.reviewNote && (
+            {request.status !== 'PENDING' && request.reviewerNote && (
                 <div className="px-4 pb-3">
                     <p className="text-xs text-muted-foreground">
-                        <span className="font-medium">Catatan reviewer:</span> {request.reviewNote}
+                        <span className="font-medium">Catatan reviewer:</span> {request.reviewerNote}
                     </p>
-                    {request.reviewedBy && (
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                            — {request.reviewedBy.name || request.reviewedBy.email}
-                        </p>
-                    )}
                 </div>
             )}
 
-            {/* Action buttons for PENDING */}
             {request.status === 'PENDING' && (
                 <div className="px-4 pb-4">
                     {reviewing === null ? (
@@ -192,21 +163,20 @@ function RequestCard({ request, onRefresh }: { request: TransactionEditRequest; 
     );
 }
 
-export default function EditRequestsPage() {
+export default function DocumentDeleteRequestsPage() {
     const { isBoss, currentUser } = useCurrentUser();
-    const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
 
     const { data: pendingRequests, isLoading: isLoadingPending } = useQuery({
-        queryKey: ['transaction-edit-requests', 'PENDING'],
-        queryFn: () => getTransactionEditRequests('PENDING'),
+        queryKey: ['document-delete-requests', 'PENDING'],
+        queryFn: () => getDocumentDeleteRequests('PENDING'),
         enabled: isBoss,
         staleTime: 30_000,
     });
 
     const { data: allRequests, isLoading: isLoadingAll } = useQuery({
-        queryKey: ['transaction-edit-requests', 'all'],
-        queryFn: () => getTransactionEditRequests(),
+        queryKey: ['document-delete-requests', 'all'],
+        queryFn: () => getDocumentDeleteRequests('all'),
         enabled: isBoss && activeTab === 'history',
         staleTime: 30_000,
     });
@@ -235,15 +205,13 @@ export default function EditRequestsPage() {
 
     return (
         <div className="space-y-6">
-            {/* Header */}
             <div>
-                <h1 className="text-xl font-bold text-foreground">Permintaan Edit Transaksi</h1>
+                <h1 className="text-xl font-bold text-foreground">Permintaan Hapus File</h1>
                 <p className="text-sm text-muted-foreground mt-1">
-                    Review dan setujui permintaan perubahan transaksi dari kasir
+                    Review permintaan hapus file dan kategori sebelum data benar-benar dihapus.
                 </p>
             </div>
 
-            {/* Tabs */}
             <div className="flex gap-1 p-1 bg-muted rounded-xl w-fit">
                 <button
                     onClick={() => setActiveTab('pending')}
@@ -270,7 +238,6 @@ export default function EditRequestsPage() {
                 </button>
             </div>
 
-            {/* Content */}
             {isLoading ? (
                 <div className="space-y-3">
                     {[1, 2, 3].map((i) => (
@@ -290,11 +257,7 @@ export default function EditRequestsPage() {
             ) : (
                 <div className="space-y-3">
                     {displayRequests.map((request) => (
-                        <RequestCard
-                            key={request.id}
-                            request={request}
-                            onRefresh={() => queryClient.invalidateQueries({ queryKey: ['transaction-edit-requests'] })}
-                        />
+                        <RequestCard key={request.id} request={request} />
                     ))}
                 </div>
             )}

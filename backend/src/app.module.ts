@@ -32,6 +32,7 @@ import { WebhookModule } from './webhook/webhook.module';
 import { CashflowRequestsModule } from './cashflow-requests/cashflow-requests.module';
 import { StockPurchasesModule } from './stock-purchases/stock-purchases.module';
 import { DocumentsModule } from './documents/documents.module';
+import { DocumentDeleteRequestsModule } from './document-delete-requests/document-delete-requests.module';
 import { EmployeeMonitoringModule } from './employee-monitoring/employee-monitoring.module';
 import { EmployeeActivityNotificationInterceptor } from './common/interceptors/employee-activity-notification.interceptor';
 
@@ -40,7 +41,7 @@ import { EmployeeActivityNotificationInterceptor } from './common/interceptors/e
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', 'public'), // Serve local uploads
     }),
-    PrismaModule, UsersModule, AuthModule, CategoriesModule, UnitsModule, ProductsModule, BatchesModule, StockMovementsModule, TransactionsModule, CashflowModule, InvoiceModule, BranchesModule, SettingsModule, BankAccountsModule, CustomersModule, HppModule, ReportsModule, WhatsappModule, CompetitorsModule, StockOpnameModule, ProductionModule, SuppliersModule, BackupModule, NotificationsModule, WebhookModule, CashflowRequestsModule, StockPurchasesModule, DocumentsModule, EmployeeMonitoringModule],
+    PrismaModule, UsersModule, AuthModule, CategoriesModule, UnitsModule, ProductsModule, BatchesModule, StockMovementsModule, TransactionsModule, CashflowModule, InvoiceModule, BranchesModule, SettingsModule, BankAccountsModule, CustomersModule, HppModule, ReportsModule, WhatsappModule, CompetitorsModule, StockOpnameModule, ProductionModule, SuppliersModule, BackupModule, NotificationsModule, WebhookModule, CashflowRequestsModule, StockPurchasesModule, DocumentsModule, DocumentDeleteRequestsModule, EmployeeMonitoringModule],
   controllers: [AppController],
   providers: [
     AppService,

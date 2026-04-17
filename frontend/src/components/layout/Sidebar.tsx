@@ -18,6 +18,7 @@ import {
     ClipboardList,
     Truck,
     ClipboardEdit,
+    Trash2,
     TrendingDown,
     Activity,
 } from "lucide-react";
@@ -26,6 +27,7 @@ import { useQuery } from "@tanstack/react-query";
 import { getDocumentCategories, getSettings } from "@/lib/api";
 import { useCurrentUser } from "@/hooks/useCurrentUser";
 import { getTransactionEditRequests } from "@/lib/api/transactions";
+import { getDocumentDeleteRequests } from "@/lib/api/document-delete-requests";
 
 const navigation = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -45,10 +47,15 @@ const managerNavigation = [
     { name: "Pantau Kinerja", href: "/monitoring", icon: Activity },
 ];
 
+const bossNavigation = [
+    { name: "Permintaan Hapus", href: "/monitoring/delete-requests", icon: Trash2 },
+    { name: "Akun Karyawan", href: "/monitoring/employee-accounts", icon: Users },
+];
+
 export function Sidebar() {
     const pathname = usePathname();
     const { isSidebarOpen, closeSidebar } = useUIStore();
-    const { isManager } = useCurrentUser();
+    const { isManager, isBoss } = useCurrentUser();
 
     // Ambil nama dan logo toko dari settings
     const { data: settings } = useQuery({
@@ -60,7 +67,14 @@ export function Sidebar() {
     const { data: pendingEditRequests } = useQuery({
         queryKey: ['transaction-edit-requests', 'PENDING'],
         queryFn: () => getTransactionEditRequests('PENDING'),
-        enabled: isManager,
+        enabled: isBoss,
+        staleTime: 60_000,
+        refetchInterval: 60_000,
+    });
+    const { data: pendingDeleteRequests } = useQuery({
+        queryKey: ['document-delete-requests', 'PENDING'],
+        queryFn: () => getDocumentDeleteRequests('PENDING'),
+        enabled: isBoss,
         staleTime: 60_000,
         refetchInterval: 60_000,
     });
@@ -70,6 +84,7 @@ export function Sidebar() {
         staleTime: 60_000,
     });
     const pendingEditCount = pendingEditRequests?.length ?? 0;
+    const pendingDeleteCount = pendingDeleteRequests?.length ?? 0;
 
     const storeName = settings?.storeName || 'BPS - CV BERKAH PRATAMA SEJAHTERA';
     const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -207,8 +222,43 @@ export function Sidebar() {
                             );
                         })}
 
-                        {/* Permintaan Edit — hanya untuk Admin/Owner */}
-                        {isManager && (
+                        {isBoss && bossNavigation.map((item) => {
+                            const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href + '/'));
+                            const badgeCount = item.href === '/monitoring/delete-requests' ? pendingDeleteCount : 0;
+                            return (
+                                <div key={item.name}>
+                                    <Link
+                                        href={item.href}
+                                        onClick={() => {
+                                            if (window.innerWidth < 1024) closeSidebar();
+                                        }}
+                                        className={cn(
+                                            isActive
+                                                ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                                                : "hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                                            "group flex items-center rounded-md px-3 py-2.5 text-sm font-medium transition-all"
+                                        )}
+                                    >
+                                        <item.icon
+                                            className={cn(
+                                                isActive ? "text-sidebar-accent-foreground" : "text-sidebar-foreground/70 group-hover:text-sidebar-accent-foreground",
+                                                "mr-3 h-5 w-5 flex-shrink-0 transition-colors"
+                                            )}
+                                            aria-hidden="true"
+                                        />
+                                        {item.name}
+                                        {badgeCount > 0 && (
+                                            <span className="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                                                {badgeCount > 9 ? '9+' : badgeCount}
+                                            </span>
+                                        )}
+                                    </Link>
+                                </div>
+                            );
+                        })}
+
+                        {/* Permintaan Edit — hanya untuk Bos */}
+                        {isBoss && (
                             <Link
                                 href="/transactions/edit-requests"
                                 onClick={() => { if (window.innerWidth < 1024) closeSidebar(); }}

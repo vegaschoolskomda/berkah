@@ -130,6 +130,14 @@ export class UsersService {
     );
   }
 
+  async isBossRole(roleId: number | null): Promise<boolean> {
+    if (!roleId) return false;
+    const role = await this.prisma.role.findUnique({ where: { id: roleId } });
+    if (!role) return false;
+    const n = role.name.toLowerCase();
+    return n === 'owner' || n === 'pemilik' || n === 'bos' || n.includes('owner') || n.includes('pemilik') || n.includes('boss') || n.includes('bos');
+  }
+
   async deleteUser(id: number) {
     return this.prisma.user.delete({
       where: { id }

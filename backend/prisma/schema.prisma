@@ -65,6 +65,8 @@ model User {
   editRequests        TransactionEditRequest[]   @relation("EditRequests")
   editReviews         TransactionEditRequest[]   @relation("EditReviews")
   uploadedDocuments   DocumentFile[]
+  documentDeleteRequests DocumentDeleteRequest[]  @relation("DocumentDeleteRequests")
+  documentDeleteReviews  DocumentDeleteRequest[]  @relation("DocumentDeleteReviews")
 
   @@map("users")
 }
@@ -108,6 +110,33 @@ model DocumentFile {
   uploadedBy User             @relation(fields: [uploadedById], references: [id])
 
   @@map("document_files")
+}
+
+enum DocumentDeleteRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model DocumentDeleteRequest {
+  id            Int                        @id @default(autoincrement())
+  documentId    Int?                       @map("document_id")
+  categoryId    Int?                       @map("category_id")
+  targetType    String                     @map("target_type")
+  targetName    String                     @map("target_name")
+  requesterId   Int                        @map("requester_id")
+  reviewedById  Int?                       @map("reviewed_by_id")
+  status        DocumentDeleteRequestStatus @default(PENDING)
+  requesterNote String?                    @map("requester_note")
+  reviewerNote  String?                    @map("reviewer_note")
+  reviewedAt    DateTime?                  @map("reviewed_at")
+  createdAt     DateTime                   @default(now()) @map("created_at")
+  updatedAt     DateTime                   @default(now()) @updatedAt @map("updated_at")
+
+  requester User      @relation("DocumentDeleteRequests", fields: [requesterId], references: [id])
+  reviewer  User?     @relation("DocumentDeleteReviews", fields: [reviewedById], references: [id])
+
+  @@map("document_delete_requests")
 }
 
 model Unit {

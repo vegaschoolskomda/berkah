@@ -924,6 +924,14 @@ export class TransactionsService {
         return n === 'admin' || n === 'owner' || n === 'pemilik' || n === 'karyawan' || n.includes('manager') || n.includes('manajer') || n.includes('supervisor') || n.includes('kepala');
     }
 
+    private async isBossOnly(roleId: number | null): Promise<boolean> {
+        if (!roleId) return false;
+        const role = await this.prisma.role.findUnique({ where: { id: roleId } });
+        if (!role) return false;
+        const n = role.name.toLowerCase();
+        return n === 'owner' || n === 'pemilik' || n === 'bos' || n.includes('owner') || n.includes('pemilik') || n.includes('boss') || n.includes('bos');
+    }
+
     private async applyTransactionEdit(tx: any, transactionId: number, editData: TransactionEditData): Promise<void> {
         const transaction = await tx.transaction.findUniqueOrThrow({
             where: { id: transactionId },
@@ -1375,7 +1383,10 @@ export class TransactionsService {
         return request;
     }
 
-    async getEditRequests(status?: string) {
+    async getEditRequests(status?: string, roleId?: number | null) {
+        if (!(await this.isBossOnly(roleId ?? null))) {
+            throw new ForbiddenException('Hanya bos yang dapat melihat permintaan edit');
+        }
         return (this.prisma as any).transactionEditRequest.findMany({
             where: status ? { status } : undefined,
             orderBy: { createdAt: 'desc' },
@@ -1388,8 +1399,8 @@ export class TransactionsService {
     }
 
     async reviewEditRequest(requestId: number, reviewerId: number, reviewerRoleId: number | null, approved: boolean, reviewNote?: string) {
-        if (!(await this.isAdminOrOwner(reviewerRoleId))) {
-            throw new ForbiddenException('Hanya Admin/Owner yang dapat mereview permintaan edit');
+        if (!(await this.isBossOnly(reviewerRoleId))) {
+            throw new ForbiddenException('Hanya bos yang dapat mereview permintaan edit');
         }
 
         const req = await (this.prisma as any).transactionEditRequest.findUnique({ where: { id: requestId } });

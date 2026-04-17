@@ -4,6 +4,7 @@ import {
     Controller,
     Delete,
     Get,
+    Inject,
     Param,
     ParseIntPipe,
     Patch,
@@ -12,6 +13,7 @@ import {
     UploadedFile,
     UseGuards,
     UseInterceptors,
+    forwardRef,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -20,7 +22,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { extname, join } from 'path';
 import { mkdirSync } from 'fs';
 import { UsersService } from '../users/users.service';
-import { NotificationsService } from '../notifications/notifications.service';
+import { DocumentDeleteRequestsService } from '../document-delete-requests/document-delete-requests.service';
 
 const uploadStorage = diskStorage({
     destination: (req, file, cb) => {
@@ -61,7 +63,8 @@ export class DocumentsController {
     constructor(
         private readonly documentsService: DocumentsService,
         private readonly usersService: UsersService,
-        private readonly notificationsService: NotificationsService,
+        @Inject(forwardRef(() => DocumentDeleteRequestsService))
+        private readonly documentDeleteRequestsService: DocumentDeleteRequestsService,
     ) {}
 
     private async isManager(req: any): Promise<boolean> {
@@ -89,18 +92,14 @@ export class DocumentsController {
     }
 
     @Delete('categories/:id')
-    async deleteCategory(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    async deleteCategory(
+        @Param('id', ParseIntPipe) id: number,
+        @Request() req: any,
+        @Body() body: { requesterNote?: string },
+    ) {
         const manager = await this.isManager(req);
         if (!manager) {
-            const category = await this.documentsService.getCategoryById(id);
-            const actor = req?.user?.email || req?.user?.name || `User#${req?.user?.userId || 'unknown'}`;
-
-            this.notificationsService.emit({
-                type: 'system',
-                title: 'Permintaan Izin Hapus Kategori File',
-                message: `${actor} meminta izin menghapus kategori file "${category.name}".`,
-            });
-
+            await this.documentDeleteRequestsService.requestCategoryDelete(id, req.user.userId, body?.requesterNote);
             return {
                 message: 'Permintaan izin hapus kategori sudah dikirim ke bos. Kategori belum dihapus.',
                 requiresApproval: true,
@@ -190,18 +189,14 @@ export class DocumentsController {
     }
 
     @Delete(':id')
-    async removeDocument(@Param('id', ParseIntPipe) id: number, @Request() req: any) {
+    async removeDocument(
+        @Param('id', ParseIntPipe) id: number,
+        @Request() req: any,
+        @Body() body: { requesterNote?: string },
+    ) {
         const manager = await this.isManager(req);
         if (!manager) {
-            const doc = await this.documentsService.getDocumentById(id);
-            const actor = req?.user?.email || req?.user?.name || `User#${req?.user?.userId || 'unknown'}`;
-
-            this.notificationsService.emit({
-                type: 'system',
-                title: 'Permintaan Izin Hapus File',
-                message: `${actor} meminta izin menghapus file "${doc.name}".`,
-            });
-
+            await this.documentDeleteRequestsService.requestDocumentDelete(id, req.user.userId, body?.requesterNote);
             return {
                 message: 'Permintaan izin hapus file sudah dikirim ke bos. File belum dihapus.',
                 requiresApproval: true,
