@@ -73,39 +73,39 @@ export const replaceVariantIngredients = async (variantId: number, ingredients: 
 export const deleteVariantIngredient = async (variantId: number, ingId: number) =>
     (await api.delete(`/products/variants/${variantId}/variant-ingredients/${ingId}`)).data;
 
-// Stock Movements
-export const getStockMovements = async (params?: { startDate?: string; endDate?: string; type?: string; search?: string }) => {
-    const q = new URLSearchParams();
-    if (params?.startDate) q.append('startDate', params.startDate);
-    if (params?.endDate)   q.append('endDate',   params.endDate);
-    if (params?.type)      q.append('type',      params.type);
-    if (params?.search)    q.append('search',    params.search);
-    const qs = q.toString();
-    return (await api.get(`/stock-movements${qs ? `?${qs}` : ''}`)).data as {
-        movements: any[];
-        summary: { totalIn: number; totalOut: number; totalAdjust: number; count: number };
-    };
-};
-export const logStockMovement = async (data: { productVariantId: number; type: 'IN' | 'OUT' | 'ADJUST'; quantity: number; reason?: string }) => {
-    return (await api.post('/stock-movements', data)).data;
-};
-export const getWasteMovements = async (variantId: number, since?: string) => {
-    const params = new URLSearchParams({ variantId: String(variantId) });
-    if (since) params.append('since', since);
-    return (await api.get(`/stock-movements/waste?${params.toString()}`)).data;
-};
+// Stock Movements - DISABLED: stock-movements module deleted from backend
+// export const getStockMovements = async (params?: { startDate?: string; endDate?: string; type?: string; search?: string }) => {
+//     const q = new URLSearchParams();
+//     if (params?.startDate) q.append('startDate', params.startDate);
+//     if (params?.endDate)   q.append('endDate',   params.endDate);
+//     if (params?.type)      q.append('type',      params.type);
+//     if (params?.search)    q.append('search',    params.search);
+//     const qs = q.toString();
+//     return (await api.get(`/stock-movements${qs ? `?${qs}` : ''}`)).data as {
+//         movements: any[];
+//         summary: { totalIn: number; totalOut: number; totalAdjust: number; count: number };
+//     };
+// };
+// export const logStockMovement = async (data: { productVariantId: number; type: 'IN' | 'OUT' | 'ADJUST'; quantity: number; reason?: string }) => {
+//     return (await api.post('/stock-movements', data)).data;
+// };
+// export const getWasteMovements = async (variantId: number, since?: string) => {
+//     const params = new URLSearchParams({ variantId: String(variantId) });
+//     if (since) params.append('since', since);
+//     return (await api.get(`/stock-movements/waste?${params.toString()}`)).data;
+// };
 export const getVariantStockHistory = async (variantId: number, page = 1, limit = 50) =>
     (await api.get(`/products/variants/${variantId}/stock-history?page=${page}&limit=${limit}`)).data;
 
-// Stock Purchases (Pembelian Bahan Baku)
-export const createStockPurchase = async (data: {
-    invoiceNumber?: string;
-    supplierId?: number;
-    notes?: string;
-    items: { productVariantId: number; quantity: number; unitPrice?: number }[];
-}) => (await api.post('/stock-purchases', data)).data;
+// Stock Purchases - DISABLED: stock-purchases module deleted from backend
+// export const createStockPurchase = async (data: {
+//     invoiceNumber?: string;
+//     supplierId?: number;
+//     notes?: string;
+//     items: { productVariantId: number; quantity: number; unitPrice?: number }[];
+// }) => (await api.post('/stock-purchases', data)).data;
 
-export const getStockPurchases = async () => (await api.get('/stock-purchases')).data;
+// export const getStockPurchases = async () => (await api.get('/stock-purchases')).data;
 
 // Public product detail (no JWT — untuk halaman share ke customer)
 export const getPublicProduct = async (id: number) => {

@@ -9,7 +9,7 @@ import { exportToExcel, exportToPDF } from "@/lib/export";
 import { useState } from "react";
 import {
     Plus, Edit2, Trash2, Search, X, Users, TrendingUp, Wallet,
-    Phone, MapPin, FileSpreadsheet, FileText, Loader2, MessageCircle, BarChart2,
+    MapPin, FileSpreadsheet, FileText, Loader2, BarChart2,
     ShoppingBag, ChevronRight, Package,
 } from "lucide-react";
 import dayjs from "dayjs";
@@ -85,7 +85,7 @@ export default function CustomersPage() {
             // Sheet 1 — Ringkasan Pelanggan
             const summary = exportRows.map((c: any) => ({
                 "Nama Pelanggan": c.name,
-                "No HP / WA": c.phone ?? "-",
+                "Nomor NPWP": c.phone ?? "-",
                 "Alamat": c.address ?? "-",
                 "Total Order": c.totalOrders,
                 "Total Pendapatan (Rp)": c.totalRevenue,
@@ -107,7 +107,7 @@ export default function CustomersPage() {
                     for (const p of c.topProducts) {
                         productDetail.push({
                             "Nama Pelanggan": c.name,
-                            "No HP / WA": c.phone ?? "-",
+                            "Nomor NPWP": c.phone ?? "-",
                             "Produk": p.name,
                             "Total Qty Dipesan": p.qty,
                             "Total Pendapatan dari Produk (Rp)": p.revenue,
@@ -142,7 +142,7 @@ export default function CustomersPage() {
 
             exportToPDF(
                 "Database Pelanggan — Lengkap dengan Analitik",
-                ["Nama", "No HP", "Total Order", "Total Pendapatan", "Avg/Order", "Favorit #1", "Favorit #2", "Favorit #3", "Terakhir Order"],
+                ["Nama", "Nomor NPWP", "Total Order", "Total Pendapatan", "Avg/Order", "Favorit #1", "Favorit #2", "Favorit #3", "Terakhir Order"],
                 exportRows.map((c: any) => [
                     c.name,
                     c.phone ?? "-",
@@ -242,7 +242,7 @@ export default function CustomersPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                     type="text"
-                    placeholder="Cari nama atau no HP..."
+                    placeholder="Cari nama atau nomor NPWP..."
                     value={searchQuery}
                     onChange={e => setSearchQuery(e.target.value)}
                     className="w-full pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm outline-none focus:ring-2 focus:ring-primary focus:border-primary"
@@ -280,25 +280,13 @@ export default function CustomersPage() {
                                 </span>
                             </div>
 
-                            {/* Phone + Revenue */}
+                            {/* NPWP + Revenue */}
                             <div className="flex items-center justify-between gap-3 text-sm">
                                 <div>
                                     {c.phone ? (
-                                        <div className="flex items-center gap-1.5">
-                                            <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                                            <span className="text-foreground">{c.phone}</span>
-                                            <a
-                                                href={`https://wa.me/${c.phone.replace(/\D/g, "")}`}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="p-1 rounded text-emerald-600 hover:bg-emerald-50 transition-colors"
-                                                title="Buka WhatsApp"
-                                            >
-                                                <MessageCircle className="w-3.5 h-3.5" />
-                                            </a>
-                                        </div>
+                                        <span className="text-foreground">{c.phone}</span>
                                     ) : (
-                                        <span className="text-muted-foreground text-xs">Tidak ada kontak</span>
+                                        <span className="text-muted-foreground text-xs">Tidak ada NPWP</span>
                                     )}
                                 </div>
                                 <div className="text-right">
@@ -363,7 +351,7 @@ export default function CustomersPage() {
                         <thead className="bg-muted/50 text-muted-foreground uppercase text-xs font-semibold">
                             <tr>
                                 <th className="px-5 py-3 text-left">Pelanggan</th>
-                                <th className="px-5 py-3 text-left">Kontak</th>
+                                <th className="px-5 py-3 text-left">Nomor NPWP</th>
                                 <th className="px-5 py-3 text-center">Total Order</th>
                                 <th className="px-5 py-3 text-right">Total Pendapatan</th>
                                 <th className="px-5 py-3 text-center">Terakhir Order</th>
@@ -397,21 +385,10 @@ export default function CustomersPage() {
                                                 </p>
                                             )}
                                         </td>
-                                        {/* Phone + WA */}
+                                        {/* Nomor NPWP */}
                                         <td className="px-5 py-3.5">
                                             {c.phone ? (
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-foreground">{c.phone}</span>
-                                                    <a
-                                                        href={`https://wa.me/${c.phone.replace(/\D/g, "")}`}
-                                                        target="_blank"
-                                                        rel="noopener noreferrer"
-                                                        className="p-1 rounded text-emerald-600 hover:bg-emerald-50 transition-colors"
-                                                        title="Buka WhatsApp"
-                                                    >
-                                                        <MessageCircle className="w-3.5 h-3.5" />
-                                                    </a>
-                                                </div>
+                                                <span className="text-foreground">{c.phone}</span>
                                             ) : (
                                                 <span className="text-muted-foreground">—</span>
                                             )}
@@ -511,11 +488,11 @@ export default function CustomersPage() {
                                 />
                             </div>
                             <div className="space-y-1.5">
-                                <label className="text-sm font-medium">No HP / WhatsApp</label>
+                                <label className="text-sm font-medium">Nomor NPWP</label>
                                 <input
                                     type="text"
                                     className="w-full px-4 py-2.5 bg-muted/50 border border-border rounded-xl focus:bg-background focus:ring-2 ring-primary/20 outline-none transition-all text-sm"
-                                    placeholder="Contoh: 081234567890"
+                                    placeholder="Contoh: 12.345.678.9-012.345"
                                     value={formData.phone}
                                     onChange={e => setFormData({ ...formData, phone: e.target.value })}
                                 />

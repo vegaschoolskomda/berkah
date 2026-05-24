@@ -1,244 +1,78 @@
 "use client";
 
-import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { getDashboardMetrics, getSalesChart } from '@/lib/api';
 import {
-  Wallet,
-  ArrowUpRight,
-  ArrowDownRight,
-  TrendingUp,
   AlertTriangle,
   Package,
-  Receipt,
   Map,
   Loader2,
-  CalendarDays,
   BarChart
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { AreaChart, Area, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 dayjs.locale("id");
 
-type ChartPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
-
-const PERIOD_OPTIONS: { key: ChartPeriod; label: string }[] = [
-  { key: 'daily', label: 'Harian' },
-  { key: 'weekly', label: 'Mingguan' },
-  { key: 'monthly', label: 'Bulanan' },
-  { key: 'yearly', label: 'Tahunan' },
-];
-
 export default function Home() {
-  const [chartPeriod, setChartPeriod] = useState<ChartPeriod>('daily');
-
-  const { data: metrics, isLoading } = useQuery({
-    queryKey: ['dashboard-metrics'],
-    queryFn: getDashboardMetrics
-  });
-
-  const { data: chartRaw, isLoading: chartLoading } = useQuery({
-    queryKey: ['sales-chart', chartPeriod],
-    queryFn: () => getSalesChart(chartPeriod),
-  });
-
-  if (isLoading) {
-    return <div className="flex h-[calc(100vh-8rem)] items-center justify-center text-muted-foreground"><Loader2 className="animate-spin w-8 h-8" /></div>;
-  }
-
-  const defaultMetrics = metrics || {
-    sales: { value: 0, trend: '0%', trendUp: true },
-    transactions: { value: 0, trend: '0%', trendUp: true },
-    cashflow: { value: 0, trend: '0%', trendUp: true },
-    alerts: { count: 0, items: [] },
-  };
-
-  const chartData = (chartRaw as any[])?.map((item: any) => ({
-    name: item.label,
-    Total: item.total,
-  })) || [];
-
   return (
     <div className="space-y-6">
       {/* Page Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Ringkasan aktivitas hari ini di Cabang Utama.
+          Ringkasan sistem manajemen CV Berkah Pratama Sejahtera.
         </p>
       </div>
 
-      {/* Top Value Metric Cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <MetricCard
-          title="Penjualan Hari Ini"
-          value={`Rp ${defaultMetrics.sales.value.toLocaleString('id-ID')}`}
-          trend={defaultMetrics.sales.trend}
-          trendUp={defaultMetrics.sales.trendUp}
-          icon={Receipt}
-          color="blue"
-        />
-        <MetricCard
-          title="Total Transaksi"
-          value={defaultMetrics.transactions.value.toString()}
-          trend={defaultMetrics.transactions.trend}
-          trendUp={defaultMetrics.transactions.trendUp}
-          icon={TrendingUp}
-          color="indigo"
-        />
-        <MetricCard
-          title="Kasir Masuk (Cashflow)"
-          value={`Rp ${defaultMetrics.cashflow.value.toLocaleString('id-ID')}`}
-          trend={defaultMetrics.cashflow.trend}
-          trendUp={defaultMetrics.cashflow.trendUp}
-          icon={Wallet}
-          color="emerald"
-        />
-        <MetricCard
-          title="Peringatan Stok"
-          value={`${defaultMetrics.alerts.count} Item`}
-          trend={`${defaultMetrics.alerts.count > 0 ? '+' : ''}${defaultMetrics.alerts.count}`}
-          trendUp={defaultMetrics.alerts.count === 0}
-          icon={AlertTriangle}
-          color="rose"
-        />
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left Column: Charts and Activity */}
+        {/* Main Section */}
         <div className="lg:col-span-2 space-y-6">
-          <div className="glass rounded-xl p-6 min-h-[400px] flex flex-col">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-              <div>
-                <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-                  <TrendingUp className="w-5 h-5 text-primary" />
-                  Tren Penjualan
-                </h2>
-                <p className="text-sm text-muted-foreground mt-1">Total pendapatan kotor berdasarkan transaksi lunas.</p>
-              </div>
-              <div className="flex items-center gap-1 bg-muted p-1 rounded-lg border border-border shrink-0">
-                <CalendarDays className="w-4 h-4 text-muted-foreground ml-1.5 mr-0.5" />
-                {PERIOD_OPTIONS.map(opt => (
-                  <button
-                    key={opt.key}
-                    onClick={() => setChartPeriod(opt.key)}
-                    className={cn(
-                      'px-3 py-1 rounded-md text-xs font-medium transition-colors',
-                      chartPeriod === opt.key
-                        ? 'bg-background text-foreground shadow-sm'
-                        : 'text-muted-foreground hover:text-foreground'
-                    )}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="w-full mt-4">
-              {chartLoading ? (
-                <div className="w-full h-[300px] flex items-center justify-center">
-                  <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : chartData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" opacity={0.5} />
-                    <XAxis
-                      dataKey="name"
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 11, fill: '#6b7280' }}
-                      dy={10}
-                    />
-                    <YAxis
-                      axisLine={false}
-                      tickLine={false}
-                      tick={{ fontSize: 11, fill: '#6b7280' }}
-                      tickFormatter={(val) => val >= 1000000 ? `${(val / 1000000).toFixed(1)}jt` : `${(val / 1000).toFixed(0)}k`}
-                      dx={-10}
-                    />
-                    <RechartsTooltip
-                      contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                      formatter={(value: any) => [`Rp ${Number(value).toLocaleString('id-ID')}`, 'Pendapatan']}
-                      labelStyle={{ fontWeight: 'bold', color: '#374151', marginBottom: '4px' }}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="Total"
-                      stroke="#3b82f6"
-                      strokeWidth={3}
-                      fillOpacity={1}
-                      fill="url(#colorTotal)"
-                      animationDuration={800}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="w-full h-full flex flex-col items-center justify-center border border-dashed border-border rounded-lg bg-muted/20">
-                  <BarChart className="w-8 h-8 text-muted-foreground/30 mb-2" />
-                  <p className="text-sm text-muted-foreground">Belum ada data penjualan untuk periode ini.</p>
-                </div>
-              )}
+          <div className="glass rounded-xl p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-4">Selamat Datang</h2>
+            <p className="text-muted-foreground mb-4">
+              Sistem manajemen ini telah dihapus fitur: Kasir POS, Manajemen Stok, dan Stok Opname.
+            </p>
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">Fitur yang masih tersedia:</p>
+              <ul className="text-sm space-y-2 text-muted-foreground list-disc list-inside">
+                <li>Invoice & Penawaran Harga (SPH)</li>
+                <li>Antrian Produksi</li>
+                <li>Manajemen Supplier</li>
+                <li>Backup & Restore</li>
+                <li>Laporan dan Analytics</li>
+              </ul>
             </div>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <QuickActionCard
-              title="Buka Kasir"
-              desc="Mulai memproses transaksi pelanggan."
-              href="/pos"
-              icon={ShoppingCartIcon}
-              color="indigo"
-            />
-            <QuickActionCard
-              title="Tambah Produk"
-              desc="Masukkan item baru ke dalam inventori."
-              href="/inventory"
+              title="Kelola Produk"
+              desc="Lihat dan edit data produk."
+              href="/settings"
               icon={Package}
               color="emerald"
+            />
+            <QuickActionCard
+              title="Kelola User"
+              desc="Pengaturan akun dan preferensi."
+              href="/settings"
+              icon={AlertTriangle}
+              color="blue"
             />
           </div>
         </div>
 
-        {/* Right Column: Alerts and Recent Activity */}
-        <div className="space-y-6">
-          <div className="glass rounded-xl p-6">
-            <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-              <AlertTriangle className="mr-2 h-5 w-5 text-chart-5" />
-              Stok Menipis
-            </h2>
-            <div className="space-y-4">
-              {defaultMetrics.alerts.items.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">Status stok aman.</p>
-              ) : (
-                defaultMetrics.alerts.items.map((item: any, i: number) => (
-                  <div key={i} className="flex items-center justify-between border-b border-border/50 last:border-0 pb-3 last:pb-0">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">{item.name}</p>
-                      <p className="text-xs text-muted-foreground">Batas minimum: {item.limit}</p>
-                    </div>
-                    <div className="text-right">
-                      <span className="inline-flex items-center rounded-md bg-destructive/10 px-2 py-1 text-xs font-medium text-destructive ring-1 ring-inset ring-destructive/20">
-                        Sisa {item.stock}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-            <Link href="/inventory" className="block text-center mt-5 text-sm font-medium text-primary hover:text-primary/80">
-              Kelola Stok Barang
-            </Link>
+        {/* Right Column */}
+        <div className="glass rounded-xl p-6">
+          <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center">
+            <AlertTriangle className="mr-2 h-5 w-5 text-chart-5" />
+            Info Sistem
+          </h2>
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <p>✓ Sistem berhasil diinisialisasi</p>
+            <p>✓ Database terhubung</p>
+            <p>✓ Proses migrasi selesai</p>
           </div>
         </div>
       </div>
@@ -248,7 +82,7 @@ export default function Home() {
 
 // Subcomponents
 
-function MetricCard({ title, value, trend, trendUp, icon: Icon, color }: any) {
+function MetricCard({ title, value, color }: any) {
   const colorStyles: Record<string, string> = {
     blue: "bg-chart-2/10 text-chart-2 border-chart-2/20",
     indigo: "bg-primary/20 text-primary border-primary/30",
@@ -257,41 +91,18 @@ function MetricCard({ title, value, trend, trendUp, icon: Icon, color }: any) {
   };
 
   return (
-    <div className="glass rounded-xl p-4 sm:p-6 transition-all duration-200 hover:shadow-md">
-      <div className="flex items-center justify-between">
-        <div className={cn("p-2 rounded-lg border", colorStyles[color])}>
-          <Icon className="h-5 w-5" />
-        </div>
-        <div
-          className={cn(
-            "flex items-center text-xs sm:text-sm font-medium px-2 py-1 rounded-full",
-            trendUp
-              ? "bg-chart-3/10 text-chart-3"
-              : "bg-destructive/10 text-destructive"
-          )}
-        >
-          {trendUp ? (
-            <ArrowUpRight className="mr-1 h-3 w-3 sm:h-4 sm:w-4" />
-          ) : (
-            <ArrowDownRight className="mr-1 h-3 w-3 sm:h-4 sm:w-4" />
-          )}
-          {trend}
-        </div>
-      </div>
-      <div className="mt-4">
-        <h3 className="text-xs sm:text-sm font-medium text-muted-foreground">{title}</h3>
-        <p className="mt-1 text-xl sm:text-2xl font-bold text-foreground tracking-tight break-words">
-          {value}
-        </p>
-      </div>
+    <div className="glass rounded-xl p-4 sm:p-6">
+      <h3 className="text-xs sm:text-sm font-medium text-muted-foreground">{title}</h3>
+      <p className="mt-1 text-xl sm:text-2xl font-bold text-foreground">{value}</p>
     </div>
   );
 }
 
 function QuickActionCard({ title, desc, href, icon: Icon, color }: any) {
   const colorMap: Record<string, string> = {
-    indigo: "hover:border-primary/50 hover:shadow-primary/10 text-primary bg-primary/10",
-    emerald: "hover:border-chart-3/50 hover:shadow-chart-3/10 text-chart-3 bg-chart-3/10",
+    indigo: "hover:border-primary/50 text-primary bg-primary/10",
+    emerald: "hover:border-chart-3/50 text-chart-3 bg-chart-3/10",
+    blue: "hover:border-chart-2/50 text-chart-2 bg-chart-2/10",
   };
 
   return (
@@ -299,35 +110,14 @@ function QuickActionCard({ title, desc, href, icon: Icon, color }: any) {
       href={href}
       className={cn(
         "group block glass rounded-xl p-5 border border-border transition-all duration-200 hover:-translate-y-1 hover:shadow-lg",
-        colorMap[color].split(' ')[0], colorMap[color].split(' ')[1]
+        colorMap[color]
       )}
     >
-      <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center mb-4 transition-colors", colorMap[color].split(' ')[2], colorMap[color].split(' ')[3])}>
+      <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center mb-4")}>
         <Icon className="h-5 w-5" />
       </div>
-      <h3 className="text-base font-semibold text-foreground group-hover:text-primary transition-colors">{title}</h3>
+      <h3 className="text-base font-semibold text-foreground">{title}</h3>
       <p className="mt-1 text-sm text-muted-foreground">{desc}</p>
     </Link>
   )
-}
-
-function ShoppingCartIcon(props: any) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="8" cy="21" r="1" />
-      <circle cx="19" cy="21" r="1" />
-      <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12" />
-    </svg>
-  );
 }

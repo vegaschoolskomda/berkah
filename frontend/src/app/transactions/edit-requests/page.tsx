@@ -193,21 +193,21 @@ function RequestCard({ request, onRefresh }: { request: TransactionEditRequest; 
 }
 
 export default function EditRequestsPage() {
-    const { isBoss, currentUser } = useCurrentUser();
+    const { isManager, currentUser } = useCurrentUser();
     const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
 
     const { data: pendingRequests, isLoading: isLoadingPending } = useQuery({
         queryKey: ['transaction-edit-requests', 'PENDING'],
         queryFn: () => getTransactionEditRequests('PENDING'),
-        enabled: isBoss,
+        enabled: isManager,
         staleTime: 30_000,
     });
 
     const { data: allRequests, isLoading: isLoadingAll } = useQuery({
         queryKey: ['transaction-edit-requests', 'all'],
         queryFn: () => getTransactionEditRequests(),
-        enabled: isBoss && activeTab === 'history',
+        enabled: isManager && activeTab === 'history',
         staleTime: 30_000,
     });
 
@@ -219,12 +219,12 @@ export default function EditRequestsPage() {
         );
     }
 
-    if (!isBoss) {
+    if (!isManager) {
         return (
             <div className="flex flex-col items-center justify-center h-64 gap-3">
                 <XCircle className="w-10 h-10 text-red-500/50" />
                 <p className="text-foreground font-medium">Akses Ditolak</p>
-                <p className="text-muted-foreground text-sm text-center">Halaman ini hanya dapat diakses oleh bos.</p>
+                <p className="text-muted-foreground text-sm text-center">Halaman ini hanya dapat diakses oleh Admin atau Owner.</p>
             </div>
         );
     }

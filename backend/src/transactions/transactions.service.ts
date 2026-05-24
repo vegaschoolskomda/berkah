@@ -237,7 +237,7 @@ export class TransactionsService {
                     transactionItemsData.push({
                         productVariantId: variant.id,
                         quantity: 1,
-                        priceAtTime: resolvedPrice,  // per-m² price (total derived from priceAtTime × area)
+                        priceAtTime: lineTotal,
                         hppAtTime: resolvedHpp,
                         widthCm,
                         heightCm,
@@ -921,15 +921,7 @@ export class TransactionsService {
         const role = await this.prisma.role.findUnique({ where: { id: roleId } });
         if (!role) return false;
         const n = role.name.toLowerCase();
-        return n === 'admin' || n === 'owner' || n === 'pemilik' || n === 'karyawan' || n.includes('manager') || n.includes('manajer') || n.includes('supervisor') || n.includes('kepala');
-    }
-
-    private async isBossOnly(roleId: number | null): Promise<boolean> {
-        if (!roleId) return false;
-        const role = await this.prisma.role.findUnique({ where: { id: roleId } });
-        if (!role) return false;
-        const n = role.name.toLowerCase();
-        return n === 'owner' || n === 'pemilik' || n === 'bos' || n.includes('owner') || n.includes('pemilik') || n.includes('boss') || n.includes('bos');
+        return n === 'admin' || n === 'owner' || n === 'pemilik' || n.includes('manager') || n.includes('manajer') || n.includes('supervisor') || n.includes('kepala');
     }
 
     private async applyTransactionEdit(tx: any, transactionId: number, editData: TransactionEditData): Promise<void> {
@@ -1034,7 +1026,6 @@ export class TransactionsService {
             const productIngredients: any[] = product.ingredients || [];
 
             let lineTotal = 0;
-            let unitResolvedPrice = 0; // per-unit price for UNIT mode (for priceAtTime storage)
             let widthCm: number | null = null;
             let heightCm: number | null = null;
             let areaCm2: number | null = null;
@@ -1084,7 +1075,6 @@ export class TransactionsService {
                 }
                 if (editItem.priceOverride != null) resolvedPrice = editItem.priceOverride;
                 lineTotal = resolvedPrice * qty;
-                unitResolvedPrice = resolvedPrice; // capture per-unit price for priceAtTime storage
 
                 if (trackStock) {
                     const current = await tx.productVariant.findUnique({ where: { id: variant.id } });
@@ -1114,10 +1104,8 @@ export class TransactionsService {
                 hppAtTime = variantIngredients.reduce((s: number, ing: any) => s + Number(ing.price) * Number(ing.quantity), 0);
             }
 
-            // Store per-m² price for AREA_BASED, per-unit price for UNIT (consistent with original checkout)
-            const itemPriceAtTime = pricingMode === 'AREA_BASED' ? Number(variant.price) : unitResolvedPrice;
             await tx.transactionItem.create({
-                data: { transactionId, productVariantId: variant.id, quantity: qty, priceAtTime: itemPriceAtTime, hppAtTime, widthCm, heightCm, areaCm2 }
+                data: { transactionId, productVariantId: variant.id, quantity: qty, priceAtTime: lineTotal, hppAtTime, widthCm, heightCm, areaCm2 }
             });
             newSubtotal += lineTotal;
         }
@@ -1226,14 +1214,12 @@ export class TransactionsService {
                     }
                 }
 
+                const unitPrice = editItem.priceOverride != null ? editItem.priceOverride / (newPriceMultiplier || 1) : Number(variant.price);
                 const newLineTotal = editItem.priceOverride != null ? editItem.priceOverride : newPriceMultiplier * Number(variant.price);
-                // Store per-m² price in priceAtTime (consistent with original checkout format)
-                // The total is derived from priceAtTime × area at display/calculation time
-                const storedPriceAtTime = Number(variant.price);
 
                 await tx.transactionItem.update({
                     where: { id: txItem.id },
-                    data: { widthCm: newW, heightCm: newH, areaCm2: newAreaCm2, priceAtTime: storedPriceAtTime }
+                    data: { widthCm: newW, heightCm: newH, areaCm2: newAreaCm2, priceAtTime: newLineTotal }
                 });
                 newSubtotal += newLineTotal;
 
@@ -1308,9 +1294,7 @@ export class TransactionsService {
             if (removedIds.has(existingItem.id) || editedIds.has(existingItem.id)) continue;
             // newItems are already counted in newSubtotal above
             if (existingItem.widthCm !== null) {
-                // AREA_BASED: priceAtTime is per-m² price, total = priceAtTime × area
-                const areaM2 = existingItem.areaCm2 ? Number(existingItem.areaCm2) / 10000 : 0;
-                newSubtotal += areaM2 > 0 ? Number(existingItem.priceAtTime) * areaM2 : Number(existingItem.priceAtTime);
+                newSubtotal += Number(existingItem.priceAtTime);
             } else {
                 newSubtotal += Number(existingItem.priceAtTime) * existingItem.quantity;
             }
@@ -1383,10 +1367,7 @@ export class TransactionsService {
         return request;
     }
 
-    async getEditRequests(status?: string, roleId?: number | null) {
-        if (!(await this.isBossOnly(roleId ?? null))) {
-            throw new ForbiddenException('Hanya bos yang dapat melihat permintaan edit');
-        }
+    async getEditRequests(status?: string) {
         return (this.prisma as any).transactionEditRequest.findMany({
             where: status ? { status } : undefined,
             orderBy: { createdAt: 'desc' },
@@ -1399,8 +1380,8 @@ export class TransactionsService {
     }
 
     async reviewEditRequest(requestId: number, reviewerId: number, reviewerRoleId: number | null, approved: boolean, reviewNote?: string) {
-        if (!(await this.isBossOnly(reviewerRoleId))) {
-            throw new ForbiddenException('Hanya bos yang dapat mereview permintaan edit');
+        if (!(await this.isAdminOrOwner(reviewerRoleId))) {
+            throw new ForbiddenException('Hanya Admin/Owner yang dapat mereview permintaan edit');
         }
 
         const req = await (this.prisma as any).transactionEditRequest.findUnique({ where: { id: requestId } });

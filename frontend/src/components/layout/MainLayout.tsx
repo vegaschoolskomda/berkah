@@ -8,7 +8,6 @@ import { ShiftReminderBanner } from "./ShiftReminderBanner";
 import { useNotificationStream } from "@/hooks/useNotificationStream";
 import { useShiftReminder } from "@/hooks/useShiftReminder";
 import { useNotificationStore } from "@/store/notification-store";
-import { EmployeeActivityTracker } from "./EmployeeActivityTracker";
 
 interface MainLayoutProps {
     children: React.ReactNode;
@@ -30,16 +29,16 @@ export function MainLayout({ children }: MainLayoutProps) {
     const pathname = usePathname();
     const isLoginPage = pathname === "/login";
     const isOpnamePage = pathname.startsWith("/opname/");
+    const isProduksiPage = pathname.startsWith("/produksi");
     const isPublicProductPage = pathname.startsWith("/p/");
 
-    if (isLoginPage || isOpnamePage || isPublicProductPage) {
+    if (isLoginPage || isOpnamePage || isProduksiPage || isPublicProductPage) {
         return <>{children}</>;
     }
 
     return (
         <div className="flex h-screen overflow-hidden bg-background">
             <AppInitializer />
-            <EmployeeActivityTracker />
             <ShiftReminderBanner />
             <Sidebar />
             <div className="flex flex-1 flex-col overflow-hidden">

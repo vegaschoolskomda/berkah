@@ -2,7 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { getCustomerAnalytics } from "@/lib/api";
-import { X, Users, TrendingUp, Wallet, Phone, MapPin, BarChart2, MessageCircle, ShoppingBag, Calendar, Loader2, Package } from "lucide-react";
+import { X, Users, TrendingUp, Wallet, MapPin, BarChart2, ShoppingBag, Calendar, Loader2, Package, FileText } from "lucide-react";
 import dayjs from "dayjs";
 import "dayjs/locale/id";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, AreaChart, Area, CartesianGrid } from "recharts";
@@ -24,12 +24,6 @@ export function AnalyticsModal({ customerId, onClose }: { customerId: number; on
 
     const avgOrder = data && data.totalOrders > 0 ? data.totalRevenue / data.totalOrders : 0;
 
-    const waLink = data?.customer?.phone
-        ? `https://wa.me/${data.customer.phone.replace(/\D/g, "")}?text=${encodeURIComponent(
-            `Halo ${data.customer.name}, kami dari toko kami ingin menginformasikan promo & produk terbaru untuk Anda. Terima kasih sudah menjadi pelanggan setia kami! 🙏`
-        )}`
-        : null;
-
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" onClick={onClose}>
             <div
@@ -47,16 +41,6 @@ export function AnalyticsModal({ customerId, onClose }: { customerId: number; on
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
-                        {waLink && (
-                            <a
-                                href={waLink}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition-colors"
-                            >
-                                <MessageCircle className="w-3.5 h-3.5" /> WA Blast
-                            </a>
-                        )}
                         <button onClick={onClose} className="p-2 text-muted-foreground hover:bg-muted rounded-lg transition-colors">
                             <X className="w-5 h-5" />
                         </button>
@@ -72,8 +56,8 @@ export function AnalyticsModal({ customerId, onClose }: { customerId: number; on
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                             {data.customer.phone && (
                                 <div className="flex items-center gap-2 text-muted-foreground">
-                                    <Phone className="w-4 h-4 shrink-0" />
-                                    <span>{data.customer.phone}</span>
+                                    <FileText className="w-4 h-4 shrink-0" />
+                                    <span>NPWP: {data.customer.phone}</span>
                                 </div>
                             )}
                             {data.customer.address && (

@@ -8,5 +8,6 @@ import { NotificationsModule } from '../notifications/notifications.module';
     imports: [forwardRef(() => DocumentsModule), NotificationsModule],
     controllers: [DocumentDeleteRequestsController],
     providers: [DocumentDeleteRequestsService],
+    exports: [DocumentDeleteRequestsService],
 })
 export class DocumentDeleteRequestsModule {}

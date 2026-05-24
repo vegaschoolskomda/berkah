@@ -140,7 +140,7 @@ export default function EmployeeAccountsPage() {
                     type="text"
                     value={searchText}
                     onChange={(e) => setSearchText(e.target.value)}
-                    placeholder="Cari nama, username, nomor, atau role..."
+                    placeholder="Cari nama, username, NPWP, atau role..."
                     className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
             </div>
@@ -151,7 +151,7 @@ export default function EmployeeAccountsPage() {
                         <tr>
                             <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Akun</th>
                             <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Role</th>
-                            <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Kontak</th>
+                            <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Nomor NPWP</th>
                             <th className="px-4 py-3 text-right font-semibold text-muted-foreground">Aksi</th>
                         </tr>
                     </thead>

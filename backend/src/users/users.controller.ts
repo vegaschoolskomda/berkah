@@ -30,6 +30,12 @@ export class UsersController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('me')
+  async getCurrentUser(@Request() req: any) {
+    return this.usersService.findById(req.user.userId);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('roles')
   async getRoles(@Request() req: any) {
     await this.ensureManager(req);

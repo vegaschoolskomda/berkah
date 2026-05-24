@@ -20,25 +20,20 @@ Yang membedakan BPS - CV BERKAH PRATAMA SEJAHTERA dari kasir biasa adalah **ekos
 |---|---|---|
 | 0 | [🔄 Alur Bisnis](alur-bisnis.md) | Setup awal, alur harian kasir, alur produksi, review keuangan — **mulai dari sini** |
 | 1 | [Login & Dashboard](#-1-login-ke-aplikasi) | Cara masuk dan membaca ringkasan bisnis harian |
-| 2 | [Kasir / POS](#-3-kasir--point-of-sale-pos) | Cara melayani pelanggan dan mencatat transaksi |
-| 3 | [Manajemen Produk & Stok](#-4-manajemen-produk--stok) | Cara kelola produk, varian, foto, stok, pembelian bahan baku, riwayat stok |
-| 4 | [DP / Piutang](#-5-daftar-dp--piutang) | Melacak pelanggan yang belum lunas |
-| 5 | [📊 Laporan Penjualan](laporan-penjualan.md) | Ringkasan metrik, Trend Produk, Histori Log transaksi |
-| 6 | [Laporan Tutup Shift](#-7-laporan-tutup-shift-) | Rekonsiliasi kas dan rekening bank akhir shift |
-| 7 | [Laporan Laba Kotor](#-laporan-laba-kotor) | Profit & margin per produk berdasarkan HPP |
-| 8 | [Data Pelanggan](#-8-data-pelanggan) | Database & riwayat belanja pelanggan |
-| 9 | [WhatsApp Bot](#-9-pengaturan-whatsapp-bot) | Setup bot laporan otomatis ke grup WA owner |
-| 10 | [💰 Cashflow Bisnis](cashflow.md) | Arus kas pemasukan & pengeluaran, chart, export |
-| 11 | [📊 Laporan Stok](laporan-stok.md) | Pergerakan stok per periode, filter IN/OUT/ADJUST, export CSV |
-| 12 | [📄 Invoice & Penawaran Harga](invoice-sph.md) | Buat invoice & SPH profesional untuk klien B2B |
-| 13 | [🗺️ Peta Cuan Lokasi](peta-cuan.md) | Peta cabang, kompetitor, dan pencarian bisnis |
-| 14 | [🎨 Tampilan Login](#-10-pengaturan-tampilan-halaman-login) | Upload foto latar, atur tagline, animated logo |
-| 15 | [🖨️ Antrian Produksi](produksi.md) | Antrian cetak, job satuan & batch, produk rakitan multi-tahap, search, detail invoice |
-| 16 | [📋 Stok Opname](stock-opname.md) | Hitung fisik stok via link operator untuk karyawan |
-| 17 | [🏭 Data Supplier](suppliers.md) | Kelola data supplier dan harga beli per varian produk |
-| 18 | [💾 Backup & Restore](backup.md) | Backup database ke ZIP, preview, dan restore dari file |
-| 19 | [🧮 Kalkulator HPP](hpp-calculator.md) | Worksheet biaya produksi, multi-varian, biaya tambah, simpan sebagai produk |
-| 20 | [🚀 Panduan Deployment](deployment.md) | Setup di home server / VPS dengan Cloudflare Tunnel |
+| 2 | [DP / Piutang](#-5-daftar-dp--piutang) | Melacak pelanggan yang belum lunas |
+| 3 | [📊 Laporan Penjualan](laporan-penjualan.md) | Ringkasan metrik, Trend Produk, Histori Log transaksi |
+| 4 | [Laporan Tutup Shift](#-7-laporan-tutup-shift-) | Rekonsiliasi kas dan rekening bank akhir shift |
+| 5 | [Laporan Laba Kotor](#-laporan-laba-kotor) | Profit & margin per produk berdasarkan HPP |
+| 6 | [Data Pelanggan](#-8-data-pelanggan) | Database & riwayat belanja pelanggan |
+| 7 | [WhatsApp Bot](#-9-pengaturan-whatsapp-bot) | Setup bot laporan otomatis ke grup WA owner |
+| 8 | [📄 Invoice & Penawaran Harga](invoice-sph.md) | Buat invoice & SPH profesional untuk klien B2B |
+| 9 | [🗺️ Peta Cuan Lokasi](peta-cuan.md) | Peta cabang, kompetitor, dan pencarian bisnis |
+| 10 | [🎨 Tampilan Login](#-10-pengaturan-tampilan-halaman-login) | Upload foto latar, atur tagline, animated logo |
+| 11 | [🖨️ Antrian Produksi](produksi.md) | Antrian cetak, job satuan & batch, produk rakitan multi-tahap, search, detail invoice |
+| 12 | [🏭 Data Supplier](suppliers.md) | Kelola data supplier dan harga beli per varian produk |
+| 13 | [💾 Backup & Restore](backup.md) | Backup database ke ZIP, preview, dan restore dari file |
+| 14 | [🧮 Kalkulator HPP](hpp-calculator.md) | Worksheet biaya produksi, multi-varian, biaya tambah, simpan sebagai produk |
+| 15 | [🚀 Panduan Deployment](deployment.md) | Setup di home server / VPS dengan Cloudflare Tunnel |
 
 ---
 

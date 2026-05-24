@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 const variantInclude = {
@@ -13,48 +13,8 @@ const variantInclude = {
 export class ProductsService {
     constructor(private prisma: PrismaService) { }
 
-    private normalizeText(value: any) {
-        return String(value || '').trim();
-    }
-
-    private async resolveCategoryAndUnit(productData: any) {
-        const data = { ...productData };
-
-        const categoryName = this.normalizeText(data.categoryName ?? data.category);
-        const unitName = this.normalizeText(data.unitName ?? data.unit);
-
-        if (categoryName) {
-            const category = await this.prisma.category.upsert({
-                where: { name: categoryName },
-                update: {},
-                create: { name: categoryName },
-            });
-            data.categoryId = category.id;
-        }
-
-        if (unitName) {
-            const unit = await this.prisma.unit.upsert({
-                where: { name: unitName },
-                update: {},
-                create: { name: unitName },
-            });
-            data.unitId = unit.id;
-        }
-
-        delete data.categoryName;
-        delete data.unitName;
-        delete data.category;
-        delete data.unit;
-
-        if (data.categoryId !== undefined) data.categoryId = Number(data.categoryId);
-        if (data.unitId !== undefined) data.unitId = Number(data.unitId);
-
-        return data;
-    }
-
     async create(data: any) {
         const { variants, ingredients, ...productData } = data;
-        const resolvedProductData = await this.resolveCategoryAndUnit(productData);
 
         // Strip priceTiers & variantIngredients from variants before nested create
         const variantsToCreate = (variants || []).map((v: any) => {
@@ -64,7 +24,7 @@ export class ProductsService {
 
         const product = await this.prisma.product.create({
             data: {
-                ...resolvedProductData,
+                ...productData,
                 variants: { create: variantsToCreate },
                 ingredients: { create: ingredients || [] }
             },
@@ -158,92 +118,70 @@ export class ProductsService {
     async update(id: number, data: any) {
         await this.findOne(id);
         const { variants, ingredients, deletedVariantIds, ...productData } = data;
-        const resolvedProductData = await this.resolveCategoryAndUnit(productData);
 
-        try {
-            await this.prisma.product.update({ where: { id }, data: resolvedProductData });
+        await this.prisma.product.update({ where: { id }, data: productData });
 
-            // Hapus varian yang dihapus dari frontend
-            if (deletedVariantIds?.length) {
-                await this.prisma.productVariant.deleteMany({
-                    where: { id: { in: deletedVariantIds }, productId: id },
+        // Hapus varian yang dihapus dari frontend
+        if (deletedVariantIds?.length) {
+            await this.prisma.productVariant.deleteMany({
+                where: { id: { in: deletedVariantIds }, productId: id },
+            });
+        }
+
+        if (variants) {
+            for (const v of variants) {
+                const { priceTiers, variantIngredients, id: variantId, ...variantData } = v;
+                let savedVariantId: number;
+
+                if (variantId) {
+                    await this.prisma.productVariant.update({ where: { id: variantId }, data: variantData });
+                    savedVariantId = variantId;
+                } else {
+                    const created = await this.prisma.productVariant.create({ data: { ...variantData, productId: id } });
+                    savedVariantId = created.id;
+                }
+
+                // Replace price tiers if provided
+                if (priceTiers !== undefined) {
+                    await this.prisma.variantPriceTier.deleteMany({ where: { variantId: savedVariantId } });
+                    if (priceTiers.length > 0) {
+                        await this.prisma.variantPriceTier.createMany({
+                            data: priceTiers.map((t: any) => {
+                                const { id: _id, variantId: _vid, ...tierData } = t;
+                                return { ...tierData, variantId: savedVariantId };
+                            })
+                        });
+                    }
+                }
+
+                // Replace variant ingredients if provided
+                if (variantIngredients !== undefined) {
+                    await this.prisma.variantIngredient.deleteMany({ where: { variantId: savedVariantId } });
+                    if (variantIngredients.length > 0) {
+                        await this.prisma.variantIngredient.createMany({
+                            data: variantIngredients.map((ing: any) => {
+                                const { id: _id, variantId: _vid, rawMaterialVariant: _rm, ...ingData } = ing;
+                                return { ...ingData, variantId: savedVariantId };
+                            })
+                        });
+                    }
+                }
+            }
+        }
+
+        if (ingredients !== undefined) {
+            await this.prisma.ingredient.deleteMany({ where: { productId: id } });
+            if (ingredients.length > 0) {
+                await this.prisma.ingredient.createMany({
+                    data: ingredients.map((ing: any) => ({ ...ing, productId: id }))
                 });
             }
-
-            if (variants) {
-                for (const v of variants) {
-                    const { priceTiers, variantIngredients, id: variantId, ...variantData } = v;
-                    let savedVariantId: number;
-
-                    if (variantId) {
-                        await this.prisma.productVariant.update({ where: { id: variantId }, data: variantData });
-                        savedVariantId = variantId;
-                    } else {
-                        const created = await this.prisma.productVariant.create({ data: { ...variantData, productId: id } });
-                        savedVariantId = created.id;
-                    }
-
-                    // Replace price tiers if provided
-                    if (priceTiers !== undefined) {
-                        await this.prisma.variantPriceTier.deleteMany({ where: { variantId: savedVariantId } });
-                        if (priceTiers.length > 0) {
-                            await this.prisma.variantPriceTier.createMany({
-                                data: priceTiers.map((t: any) => {
-                                    const { id: _id, variantId: _vid, ...tierData } = t;
-                                    return { ...tierData, variantId: savedVariantId };
-                                })
-                            });
-                        }
-                    }
-
-                    // Replace variant ingredients if provided
-                    if (variantIngredients !== undefined) {
-                        await this.prisma.variantIngredient.deleteMany({ where: { variantId: savedVariantId } });
-                        if (variantIngredients.length > 0) {
-                            await this.prisma.variantIngredient.createMany({
-                                data: variantIngredients.map((ing: any) => {
-                                    const { id: _id, variantId: _vid, rawMaterialVariant: _rm, ...ingData } = ing;
-                                    return { ...ingData, variantId: savedVariantId };
-                                })
-                            });
-                        }
-                    }
-                }
-            }
-
-            if (ingredients !== undefined) {
-                await this.prisma.ingredient.deleteMany({ where: { productId: id } });
-                if (ingredients.length > 0) {
-                    await this.prisma.ingredient.createMany({
-                        data: ingredients.map((ing: any) => ({ ...ing, productId: id }))
-                    });
-                }
-            }
-        } catch (e: any) {
-            if (e.code === 'P2002') {
-                const field = e.meta?.target?.join(', ') ?? 'field';
-                throw new ConflictException(`Duplikat nilai pada ${field} — pastikan SKU setiap varian unik`);
-            }
-            throw e;
         }
 
         return this.findOne(id);
     }
 
-    async bulkImport(payload: {
-        products: any[];
-        categoryMode?: 'auto' | 'manual';
-        manualCategoryName?: string;
-        autoCreateCategories?: boolean;
-    }) {
-        const categoryMode = payload.categoryMode === 'manual' ? 'manual' : 'auto';
-        const autoCreateCategories = payload.autoCreateCategories !== false;
-        const manualCategoryName = this.normalizeText(payload.manualCategoryName);
-
-        if (categoryMode === 'manual' && !manualCategoryName) {
-            throw new ConflictException('Nama kategori manual wajib diisi saat mode kategori manual dipilih');
-        }
-
+    async bulkImport(payload: { products: any[] }) {
         const results: { created: number; skipped: number; errors: { name: string; message: string }[] } = {
             created: 0,
             skipped: 0,
@@ -252,33 +190,14 @@ export class ProductsService {
 
         for (const item of payload.products) {
             try {
-                const itemCategoryName = this.normalizeText(item.category);
-                const categoryName = categoryMode === 'manual' ? manualCategoryName : itemCategoryName;
-
-                if (!categoryName) {
-                    throw new ConflictException('Kategori wajib diisi pada data import');
-                }
-
-                const category = autoCreateCategories
-                    ? await this.prisma.category.upsert({
-                        where: { name: categoryName },
-                        create: { name: categoryName },
-                        update: {},
-                    })
-                    : await this.prisma.category.findUnique({ where: { name: categoryName } });
-
-                if (!category) {
-                    throw new NotFoundException(`Kategori \"${categoryName}\" tidak ditemukan. Aktifkan auto-create atau isi kategori yang sudah ada.`);
-                }
-
-                const unitName = this.normalizeText(item.unit);
-                if (!unitName) {
-                    throw new ConflictException('Satuan wajib diisi pada data import');
-                }
-
+                const category = await this.prisma.category.upsert({
+                    where: { name: item.category },
+                    create: { name: item.category },
+                    update: {},
+                });
                 const unit = await this.prisma.unit.upsert({
-                    where: { name: unitName },
-                    create: { name: unitName },
+                    where: { name: item.unit },
+                    create: { name: item.unit },
                     update: {},
                 });
 
@@ -356,14 +275,7 @@ export class ProductsService {
 
     async remove(id: number) {
         await this.findOne(id);
-        try {
-            return await this.prisma.product.delete({ where: { id } });
-        } catch (e: any) {
-            if (e?.code === 'P2003') {
-                throw new ConflictException('Produk tidak bisa dihapus karena masih dipakai transaksi atau data lain');
-            }
-            throw e;
-        }
+        return this.prisma.product.delete({ where: { id } });
     }
 
     async bulkRemove(ids: number[]) {

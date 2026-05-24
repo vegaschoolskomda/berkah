@@ -29,6 +29,7 @@ export const uploadLogoImage = async (file: File) => {
 };
 
 // Users & Roles
+export const getMe = async () => (await api.get('/users/me')).data;
 export const getUsers = async () => (await api.get('/users')).data;
 export const createUser = async (data: any) => (await api.post('/users', data)).data;
 export const updateUser = async (id: number, data: { name?: string, email?: string, roleId?: number, phone?: string, password?: string }) =>
