@@ -5,23 +5,16 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
     LayoutDashboard,
-    ShoppingCart,
-    BarChart3,
     Package,
-    Wallet,
     FileText,
-    MapPin,
-    Calculator,
     Settings,
     Banknote,
     Users,
     X,
     Store,
     ClipboardList,
-    Printer,
-    Truck,
     ClipboardEdit,
-    TrendingDown,
+    Database,
 } from "lucide-react";
 import { useUIStore } from "@/store/ui-store";
 import { useQuery } from "@tanstack/react-query";
@@ -31,20 +24,12 @@ import { getTransactionEditRequests } from "@/lib/api/transactions";
 
 const navigation = [
     { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    { name: "Kasir POS", href: "/pos", icon: ShoppingCart },
-    { name: "Rekap Penjualan", href: "/reports/sales", icon: BarChart3 },
-    { name: "Laporan Laba Kotor", href: "/reports/profit", icon: BarChart3 },
-    { name: "Daftar DP / Piutang", href: "/transactions/dp", icon: Wallet },
+    { name: "Olah Data", href: "/olah-data", icon: Database },
     { name: "Manajemen Stok", href: "/inventory", icon: Package },
-    { name: "Laporan Stok", href: "/reports/stock", icon: TrendingDown },
-    { name: "Data Supplier", href: "/inventory/suppliers", icon: Truck },
     { name: "Stok Opname", href: "/inventory/opname", icon: ClipboardList },
-    { name: "Antrian Produksi", href: "/produksi", icon: Printer },
     { name: "Cashflow Bisnis", href: "/cashflow", icon: Banknote },
     { name: "Data Pelanggan", href: "/customers", icon: Users },
     { name: "Invoice & Penawaran", href: "/invoices", icon: FileText },
-    { name: "Peta Cuan Lokasi", href: "/maps", icon: MapPin },
-    { name: "Kalkulator HPP", href: "/reports/hpp", icon: Calculator },
 ];
 
 export function Sidebar() {
