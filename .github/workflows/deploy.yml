@@ -20,8 +20,7 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          script: |
-            cd /var/www/berkah
-            git pull origin main
-            # Jika pakai Laravel, tambahkan: php artisan migrate --force
-            # Jika pakai Node.js, tambahkan: npm install && pm2 restart app
+      script: | 
+      cd /var/www/berkah 
+      git pull origin main 
+      # Jika pakai Laravel, tambahkan: php artisan migrate --force # Jika pakai Node.js, tambahkan: npm install && pm2 restart app
